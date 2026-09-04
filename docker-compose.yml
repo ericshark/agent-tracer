@@ -1,0 +1,59 @@
+name: agent-tracer
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: tracer
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tracer}
+      POSTGRES_DB: agent_tracer
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tracer -d agent_tracer"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    build: ./server
+    environment:
+      DATABASE_URL: postgresql+asyncpg://tracer:${POSTGRES_PASSWORD:-tracer}@db:5432/agent_tracer
+      SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in .env}
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      # The SPA is served same-origin by nginx, so no CORS origins are needed
+      # in Docker. Add origins here if you serve the UI from elsewhere.
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${API_PORT:-8000}:8000"
+    restart: unless-stopped
+
+  web:
+    build: ./web
+    depends_on:
+      - api
+    ports:
+      - "${WEB_PORT:-3000}:80"
+    restart: unless-stopped
+
+  # One-shot: seed demo data (user, project, API key, traces).
+  #   docker compose run --rm seed
+  seed:
+    build: ./server
+    profiles: ["seed"]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://tracer:${POSTGRES_PASSWORD:-tracer}@db:5432/agent_tracer
+      SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in .env}
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-demo-password}
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["python", "-m", "app.seed"]
+
+volumes:
+  pgdata:
