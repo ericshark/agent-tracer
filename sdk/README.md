@@ -1,37 +1,47 @@
 # agent-tracer-sdk
 
-Lightweight Python tracing SDK for [Agent Tracer](../README.md) — instrument an
-AI agent in a few lines and watch its executions live.
+Python instrumentation for [Agent Tracer](../README.md). Wrap agent and tool
+calls to record their inputs, outputs, timing, and errors.
+
+## Run locally
+
+Requires Python 3.9+ and a running Agent Tracer API. In an activated virtual
+environment, from the repository root:
 
 ```bash
-pip install agent-tracer-sdk        # from this repo: pip install -e sdk
+pip install -e sdk
+export AGENT_TRACER_API_KEY='at_replace_with_your_key'
+export AGENT_TRACER_BASE_URL=http://localhost:8001
 ```
+
+Use the API key printed by seeding or create one in Settings → API keys.
+Match the base URL to your API's port. Run this Python example:
 
 ```python
 from agent_tracer import AgentTracer
 
-tracer = AgentTracer(api_key="at_…", base_url="http://localhost:8000")
-
-with tracer.trace("support-run", session_id="user-42"):
-    with tracer.agent("router"):
-        with tracer.llm(model="claude-opus-5", messages=msgs) as llm:
-            reply = call_model(msgs)
-            llm.set_output(reply).set_usage(input_tokens=812, output_tokens=310)
-
-        with tracer.tool("search", input={"q": "refund policy"}) as tool:
-            tool.set_output(results)
-
-@tracer.observe(kind="TOOL")            # decorator form, sync or async
-def lookup_order(order_id: str): ...
+tracer = AgentTracer()
+try:
+    with tracer.trace("example-run"):
+        with tracer.tool("add", input={"a": 2, "b": 3}) as span:
+            span.set_output(2 + 3)
+finally:
+    tracer.flush()
+    tracer.shutdown()
 ```
 
-- Configuration via `AGENT_TRACER_API_KEY` / `AGENT_TRACER_BASE_URL` env vars.
-- Span kinds: `agent`, `llm`, `tool`, `chain`, `retriever`, or generic
-  `span(kind=…)`.
-- Exceptions are recorded (type, message, stacktrace) and re-raised.
-- Background batch exporter (daemon thread, retries with backoff) — never blocks
-  your app; `tracer.flush()` before exit in short scripts.
-- No-op when no API key is configured, so it is safe to leave in place.
-- W3C-format trace/span ids; only dependency is `httpx`.
+## Useful commands
 
-See [`examples/demo_agent.py`](examples/demo_agent.py) for a full runnable demo.
+From the repository root, `python sdk/examples/demo_agent.py --runs 2 --fail`
+sends simulated model and tool calls, including a failed run. No provider key
+is needed. For tests, install `pip install -e 'sdk[dev]'`, then run
+`cd sdk && python -m pytest -q`.
+
+## How it works
+
+Nested spans form a trace. A background exporter sends batches with retries;
+flush before short scripts exit. Exceptions are recorded and re-raised.
+Tracing is disabled when no API key is configured.
+
+See the [SDK reference](../docs/reference.md#using-the-python-sdk) for model
+calls, decorators, usage/cost recording, and additional span types.
