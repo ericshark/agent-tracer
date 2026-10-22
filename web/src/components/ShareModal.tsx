@@ -41,7 +41,7 @@ export function ShareModal({ tracePk, onClose }: { tracePk: string; onClose: () 
           <select
             value={expiry}
             onChange={(event) => setExpiry(event.target.value)}
-            className="rounded-md border border-hairline bg-surface-2 px-2 py-1.5 text-sm text-ink"
+            className="rounded-lg border border-hairline bg-surface-2 px-2 py-1.5 text-sm text-ink"
           >
             <option value="24">in 24 hours</option>
             <option value="168">in 7 days</option>
@@ -65,7 +65,7 @@ export function ShareModal({ tracePk, onClose }: { tracePk: string; onClose: () 
             return (
               <li
                 key={share.id}
-                className="flex items-center gap-2 rounded-md border border-hairline px-3 py-2"
+                className="flex items-center gap-2 rounded-lg border border-hairline px-3 py-2"
               >
                 <div className="min-w-0 flex-1">
                   <p className="mono truncate text-xs" title={url}>

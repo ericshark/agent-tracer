@@ -1,11 +1,13 @@
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { CodeIcon, KeyIcon, ReplayIcon } from "../components/icons";
 import { Layout } from "../components/Layout";
 import {
   CopyButton,
   GhostButton,
+  IconChip,
   Modal,
   PrimaryButton,
   Spinner,
@@ -19,14 +21,22 @@ export function SettingsPage() {
   const { projectId } = useParams<{ projectId: string }>();
   if (!projectId) return null;
   return (
-    <Layout>
-      <h1 className="mb-5 text-lg font-semibold">Settings</h1>
-      <div className="flex flex-col gap-6">
+    <Layout title="Settings">
+      <div className="mx-auto flex max-w-4xl flex-col gap-5">
         <ApiKeysSection projectId={projectId} />
         <QuickstartSection />
         <CredentialsSection projectId={projectId} />
       </div>
     </Layout>
+  );
+}
+
+function SectionTitle({ icon, children }: { icon: ReactNode; children: ReactNode }) {
+  return (
+    <h2 className="flex items-center gap-2.5">
+      <IconChip>{icon}</IconChip>
+      <span className="mono text-[14px] text-ink">{children}</span>
+    </h2>
   );
 }
 
@@ -57,14 +67,14 @@ function ApiKeysSection({ projectId }: { projectId: string }) {
 
   return (
     <section className="card p-5">
-      <h2 className="text-sm font-semibold">API keys</h2>
-      <p className="mt-1 text-xs text-ink-muted">
+      <SectionTitle icon={<KeyIcon size={14} />}>API keys</SectionTitle>
+      <p className="mt-2 text-xs text-ink-muted">
         The SDK authenticates ingest with a project API key. Keys are stored hashed — the full
         key is shown only once, at creation.
       </p>
 
       <form
-        className="mt-3 flex gap-2"
+        className="mt-4 flex flex-wrap gap-2"
         onSubmit={(event: FormEvent) => {
           event.preventDefault();
           create.mutate();
@@ -74,7 +84,7 @@ function ApiKeysSection({ projectId }: { projectId: string }) {
           placeholder="Key name (e.g. production)"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-64"
+          className="w-full sm:w-64"
         />
         <PrimaryButton type="submit" disabled={create.isPending}>
           Generate key
@@ -90,9 +100,9 @@ function ApiKeysSection({ projectId }: { projectId: string }) {
           {(keys.data ?? []).map((key) => (
             <li
               key={key.id}
-              className="flex flex-wrap items-center gap-2 rounded-md border border-hairline px-3 py-2 text-sm"
+              className="flex flex-wrap items-center gap-2 rounded-lg border border-hairline bg-surface-2/50 px-3 py-2 text-sm"
             >
-              <span className="font-medium">{key.name}</span>
+              <span className="mono text-[13px] text-ink">{key.name}</span>
               <span className="mono text-xs text-ink-muted">{key.key_prefix}…</span>
               <span className="text-xs text-ink-muted">
                 created {formatTimeAgo(key.created_at)}
@@ -121,7 +131,7 @@ function ApiKeysSection({ projectId }: { projectId: string }) {
           <p className="mb-3 text-xs text-ink-muted">
             Copy this key now — for security it will never be shown again.
           </p>
-          <div className="flex items-center gap-2 rounded-md border border-hairline bg-surface-2 px-3 py-2">
+          <div className="flex items-center gap-2 rounded-lg border border-hairline bg-surface-2 px-3 py-2">
             <code className="mono min-w-0 flex-1 break-all text-xs">{createdKey.key}</code>
             <CopyButton text={createdKey.key} />
           </div>
@@ -166,13 +176,13 @@ function QuickstartSection() {
   return (
     <section className="card p-5">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold">Instrument your app</h2>
+        <SectionTitle icon={<CodeIcon size={14} />}>Instrument your app</SectionTitle>
         <CopyButton text={SNIPPET} label="Copy snippet" />
       </div>
-      <pre className="mono panel-scroll mt-3 overflow-x-auto rounded-md bg-surface-2 p-4 text-[12px] leading-relaxed text-ink-secondary">
+      <pre className="mono panel-scroll mt-3 overflow-x-auto rounded-lg border border-hairline bg-page p-4 text-[12px] leading-relaxed text-ink-secondary">
         {SNIPPET}
       </pre>
-      <pre className="mono panel-scroll mt-3 overflow-x-auto rounded-md bg-surface-2 p-4 text-[12px] leading-relaxed text-ink-muted">
+      <pre className="mono panel-scroll mt-3 overflow-x-auto rounded-lg border border-hairline bg-page p-4 text-[12px] leading-relaxed text-ink-muted">
         {OTEL_SNIPPET}
       </pre>
     </section>
@@ -213,14 +223,14 @@ function CredentialsSection({ projectId }: { projectId: string }) {
 
   return (
     <section className="card p-5">
-      <h2 className="text-sm font-semibold">Replay credentials</h2>
-      <p className="mt-1 text-xs text-ink-muted">
+      <SectionTitle icon={<ReplayIcon size={14} />}>Replay credentials</SectionTitle>
+      <p className="mt-2 text-xs text-ink-muted">
         Optional model-provider keys used <em>only</em> to replay LLM spans against the real
         model. Encrypted at rest. Without a key, replays run in the offline simulator.
       </p>
 
       <form
-        className="mt-3 flex flex-wrap items-end gap-2"
+        className="mt-4 flex flex-wrap items-end gap-2"
         onSubmit={(event: FormEvent) => {
           event.preventDefault();
           save.mutate();
@@ -231,7 +241,7 @@ function CredentialsSection({ projectId }: { projectId: string }) {
           <select
             value={provider}
             onChange={(e) => setProvider(e.target.value)}
-            className="rounded-md border border-hairline bg-surface-2 px-2 py-1.5 text-sm text-ink"
+            className="rounded-lg border border-hairline bg-surface-2 px-2 py-1.5 text-sm text-ink focus:border-accent/60 focus:outline-none"
           >
             <option value="anthropic">Anthropic</option>
             <option value="openai">OpenAI-compatible</option>
@@ -244,7 +254,7 @@ function CredentialsSection({ projectId }: { projectId: string }) {
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
             placeholder="sk-…"
-            className="w-64"
+            className="w-full sm:w-64"
             required
           />
         </label>
@@ -255,7 +265,7 @@ function CredentialsSection({ projectId }: { projectId: string }) {
               value={baseUrl}
               onChange={(e) => setBaseUrl(e.target.value)}
               placeholder="https://api.openai.com"
-              className="w-64"
+              className="w-full sm:w-64"
             />
           </label>
         )}
@@ -269,9 +279,9 @@ function CredentialsSection({ projectId }: { projectId: string }) {
           {credentials.data.map((cred) => (
             <li
               key={cred.provider}
-              className="flex items-center gap-3 rounded-md border border-hairline px-3 py-2 text-sm"
+              className="flex flex-wrap items-center gap-3 rounded-lg border border-hairline bg-surface-2/50 px-3 py-2 text-sm"
             >
-              <span className="font-medium capitalize">{cred.provider}</span>
+              <span className="mono text-[13px] text-ink capitalize">{cred.provider}</span>
               <span className="mono text-xs text-ink-muted">{cred.masked_key}</span>
               {cred.base_url && (
                 <span className="mono text-xs text-ink-muted">{cred.base_url}</span>

@@ -19,7 +19,7 @@ export function JsonView({ value, maxHeight = 320 }: { value: unknown; maxHeight
         <CopyButton text={text} />
       </div>
       <pre
-        className="mono panel-scroll overflow-auto whitespace-pre-wrap break-words rounded-md bg-surface-2 p-3 text-xs leading-relaxed text-ink-secondary"
+        className="mono panel-scroll overflow-auto whitespace-pre-wrap break-words rounded-lg border border-hairline bg-page p-3 text-xs leading-relaxed text-ink-secondary"
         style={{ maxHeight }}
       >
         {text}
@@ -66,10 +66,10 @@ export function MessageBubble({ role, content }: { role: string; content: unknow
   };
   return (
     <div
-      className={`rounded-md bg-surface-2 px-3 py-2 ${roleStyles[role] ?? "border-l-2"}`}
+      className={`rounded-lg border border-hairline bg-surface-2/60 px-3 py-2 ${roleStyles[role] ?? "border-l-2"}`}
       style={{ borderLeftColor: roleBorder[role] ?? "var(--series-8)" }}
     >
-      <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-muted">
+      <p className="mono mb-1 text-[10px] font-medium tracking-wider text-ink-muted uppercase">
         {role}
       </p>
       <p className="mono whitespace-pre-wrap break-words text-xs leading-relaxed text-ink-secondary">

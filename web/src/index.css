@@ -1,76 +1,88 @@
 @import "tailwindcss";
 
 /* ------------------------------------------------------------------ theme
-   Design tokens (validated data-viz palette; dark is a selected set of steps,
-   not an automatic flip). The app defaults to dark; `data-theme` wins. */
+   Charcoal + signal-green dashboard palette. The app defaults to dark;
+   `data-theme` wins. Token names are shared by both themes. */
 
 :root,
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --page: #0d0d0d;
-  --surface-1: #1a1a19;
-  --surface-2: #232322;
-  --text-primary: #ffffff;
-  --text-secondary: #c3c2b7;
-  --text-muted: #898781;
-  --grid: #2c2c2a;
-  --baseline: #383835;
-  --hairline: rgba(255, 255, 255, 0.1);
-  --accent: #3987e5;
-  --accent-soft: rgba(57, 135, 229, 0.14);
+  --page: #161816;
+  --surface-1: #1c1f1c;
+  --surface-2: #242824;
+  --surface-3: #2c312c;
+  --text-primary: #e8ebe6;
+  --text-secondary: #a3a8a0;
+  --text-muted: #6f756c;
+  --grid: #262a26;
+  --baseline: #353a35;
+  --hairline: rgba(255, 255, 255, 0.07);
+  --highlight: rgba(255, 255, 255, 0.03);
+  --accent: #2fd36b;
+  --accent-strong: #22b85a;
+  --accent-soft: rgba(47, 211, 107, 0.12);
+  --accent-ink: #0b130d;
+  --dot-dim: rgba(255, 255, 255, 0.07);
 
-  /* categorical slots (dark steps) — fixed assignment by span kind */
-  --series-1: #3987e5; /* LLM */
-  --series-2: #d95926; /* TOOL */
-  --series-3: #199e70; /* AGENT */
-  --series-4: #c98500; /* CHAIN */
-  --series-5: #d55181; /* RETRIEVER */
-  --series-6: #008300; /* EMBEDDING */
-  --series-7: #9085e9; /* GUARDRAIL */
-  --series-8: #e66767; /* UNKNOWN */
+  /* categorical slots — fixed assignment by span kind */
+  --series-1: #2fd36b; /* LLM */
+  --series-2: #e0a43a; /* TOOL */
+  --series-3: #5b8def; /* AGENT */
+  --series-4: #c08cf0; /* CHAIN */
+  --series-5: #e57aa8; /* RETRIEVER */
+  --series-6: #3cc4c4; /* EMBEDDING */
+  --series-7: #9aa3f5; /* GUARDRAIL */
+  --series-8: #8b9187; /* UNKNOWN */
 
-  /* status (fixed, never themed) */
-  --status-good: #0ca30c;
-  --status-warning: #fab219;
+  --status-good: #2fd36b;
+  --status-warning: #e0a43a;
   --status-serious: #ec835a;
-  --status-critical: #d03b3b;
-  --delta-good: #0ca30c;
+  --status-critical: #e5484d;
+  --status-info: #5b8def;
+  --delta-good: #2fd36b;
 }
 
 :root[data-theme="light"] {
   color-scheme: light;
-  --page: #f9f9f7;
-  --surface-1: #fcfcfb;
-  --surface-2: #f0efec;
-  --text-primary: #0b0b0b;
-  --text-secondary: #52514e;
-  --text-muted: #898781;
-  --grid: #e1e0d9;
-  --baseline: #c3c2b7;
-  --hairline: rgba(11, 11, 11, 0.1);
-  --accent: #2a78d6;
-  --accent-soft: rgba(42, 120, 214, 0.12);
+  --page: #f3f4f1;
+  --surface-1: #fbfbf9;
+  --surface-2: #eef0eb;
+  --surface-3: #e3e6df;
+  --text-primary: #121512;
+  --text-secondary: #4b5149;
+  --text-muted: #7c8279;
+  --grid: #e3e6df;
+  --baseline: #c9cdc4;
+  --hairline: rgba(18, 21, 18, 0.09);
+  --highlight: rgba(255, 255, 255, 0.6);
+  --accent: #15a34a;
+  --accent-strong: #11873d;
+  --accent-soft: rgba(21, 163, 74, 0.1);
+  --accent-ink: #ffffff;
+  --dot-dim: rgba(18, 21, 18, 0.08);
 
-  --series-1: #2a78d6;
-  --series-2: #eb6834;
-  --series-3: #1baf7a;
-  --series-4: #eda100;
-  --series-5: #e87ba4;
-  --series-6: #008300;
-  --series-7: #4a3aa7;
-  --series-8: #e34948;
+  --series-1: #15a34a;
+  --series-2: #c27f0e;
+  --series-3: #2f6fdc;
+  --series-4: #8a4fd0;
+  --series-5: #cc4b84;
+  --series-6: #0e9393;
+  --series-7: #5a63d8;
+  --series-8: #7c8279;
 
-  --status-good: #0ca30c;
-  --status-warning: #fab219;
-  --status-serious: #ec835a;
-  --status-critical: #d03b3b;
-  --delta-good: #006300;
+  --status-good: #15a34a;
+  --status-warning: #c27f0e;
+  --status-serious: #d0662f;
+  --status-critical: #d12f35;
+  --status-info: #2f6fdc;
+  --delta-good: #15a34a;
 }
 
 @theme inline {
   --color-page: var(--page);
   --color-surface-1: var(--surface-1);
   --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
   --color-ink: var(--text-primary);
   --color-ink-secondary: var(--text-secondary);
   --color-ink-muted: var(--text-muted);
@@ -78,7 +90,9 @@
   --color-baseline: var(--baseline);
   --color-hairline: var(--hairline);
   --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
   --color-accent-soft: var(--accent-soft);
+  --color-accent-ink: var(--accent-ink);
   --color-series-1: var(--series-1);
   --color-series-2: var(--series-2);
   --color-series-3: var(--series-3);
@@ -91,8 +105,9 @@
   --color-warning: var(--status-warning);
   --color-serious: var(--status-serious);
   --color-critical: var(--status-critical);
-  --font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --color-info: var(--status-info);
+  --font-sans: "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 html,
@@ -104,25 +119,69 @@ body,
 body {
   background: var(--page);
   color: var(--text-primary);
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
 
-/* Hairline card used everywhere */
-.card {
-  background: var(--surface-1);
-  border: 1px solid var(--hairline);
-  border-radius: 10px;
-}
+/* Component classes live in a layer so Tailwind utilities can override them
+   (e.g. `card bg-hairline`). */
+@layer components {
+  /* Hairline card used everywhere */
+  .card {
+    background: var(--surface-1);
+    border: 1px solid var(--hairline);
+    border-radius: 12px;
+    box-shadow: inset 0 1px 0 var(--highlight);
+  }
 
-.mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-}
+  .mono {
+    font-family: var(--font-mono);
+  }
 
-/* subtle scrollbars for panels */
-.panel-scroll {
-  scrollbar-width: thin;
-  scrollbar-color: var(--baseline) transparent;
+  /* Page titles render as `[Title]` in mono */
+  .title-bracket {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    letter-spacing: 0.02em;
+  }
+  .title-bracket::before {
+    content: "[";
+  }
+  .title-bracket::after {
+    content: "]";
+  }
+
+  /* Decorative dot texture (sidebar meter, login backdrop) */
+  .dot-grid {
+    background-image: radial-gradient(var(--dot-dim) 1px, transparent 1.2px);
+    background-size: 6px 6px;
+  }
+
+  /* Diagonal hatch used behind the sidebar spend card */
+  .hatch {
+    background-image: repeating-linear-gradient(
+      135deg,
+      var(--dot-dim) 0 1px,
+      transparent 1px 7px
+    );
+  }
+
+  /* Active nav item: green sheen fading in from the right edge */
+  .nav-active {
+    background: linear-gradient(
+      90deg,
+      var(--surface-2) 0%,
+      var(--surface-2) 55%,
+      color-mix(in srgb, var(--accent) 35%, var(--surface-2)) 100%
+    );
+    box-shadow: inset -2px 0 0 var(--accent);
+  }
+
+  /* subtle scrollbars for panels */
+  .panel-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: var(--baseline) transparent;
+  }
 }
 
 input,
@@ -142,4 +201,10 @@ textarea {
 }
 .live-dot {
   animation: pulse-dot 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-dot {
+    animation: none;
+  }
 }

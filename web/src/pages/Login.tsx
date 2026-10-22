@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { ApiError } from "../lib/api";
+import { LogoMark } from "../components/icons";
 import { PrimaryButton, TextInput } from "../components/ui";
 import { useAuth } from "../state/auth";
 
@@ -32,21 +33,21 @@ export function LoginPage() {
   };
 
   return (
-    <div className="grid min-h-full place-items-center px-4">
+    <div className="dot-grid grid min-h-full place-items-center px-4 py-10">
       <div className="w-full max-w-sm">
-        <div className="mb-6 flex items-center justify-center gap-2 text-lg font-semibold">
-          <span
-            aria-hidden
-            className="grid h-7 w-7 place-items-center rounded-md bg-accent text-sm font-bold text-white"
-          >
-            ⌁
-          </span>
-          Agent Tracer
+        <div className="mb-6 flex items-center justify-center gap-2.5 text-ink">
+          <LogoMark size={26} className="text-accent" />
+          <span className="mono text-lg font-medium tracking-tight">agent-tracer</span>
         </div>
-        <form onSubmit={submit} className="card flex flex-col gap-3 p-6">
-          <h1 className="text-sm font-semibold">
-            {mode === "login" ? "Sign in" : "Create your account"}
+        <form onSubmit={submit} className="card flex flex-col gap-3 p-6 shadow-2xl">
+          <h1 className="title-bracket text-[15px] text-ink">
+            {mode === "login" ? "Sign in" : "Create account"}
           </h1>
+          <p className="-mt-1 mb-1 text-xs text-ink-muted">
+            {mode === "login"
+              ? "Inspect, replay, and compare your agent runs."
+              : "Start tracing your agents in minutes."}
+          </p>
           {mode === "register" && (
             <TextInput
               placeholder="Your name"
@@ -90,7 +91,7 @@ export function LoginPage() {
               : "Already have an account? Sign in"}
           </button>
         </form>
-        <p className="mt-4 text-center text-xs text-ink-muted">
+        <p className="mono mt-4 text-center text-[11px] text-ink-muted">
           Seeded demo: demo@agenttracer.dev / demo-password
         </p>
       </div>

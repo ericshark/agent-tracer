@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 
+import { LogoMark } from "../components/icons";
 import { SpanInspector } from "../components/SpanInspector";
+import { MetricRow } from "../components/StatTile";
 import { Waterfall } from "../components/Waterfall";
 import { EmptyState, Spinner, StatusBadge } from "../components/ui";
 import { api } from "../lib/api";
@@ -32,52 +34,51 @@ export function SharePage() {
 
   return (
     <div className="min-h-full">
-      <header className="border-b border-hairline bg-page/90">
-        <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4">
-          <span className="flex items-center gap-2 font-semibold tracking-tight">
-            <span
-              aria-hidden
-              className="grid h-6 w-6 place-items-center rounded-md bg-accent text-[13px] font-bold text-white"
-            >
-              ⌁
-            </span>
-            Agent Tracer
+      <header className="sticky top-0 z-30 border-b border-hairline bg-page/85 backdrop-blur">
+        <div className="flex h-14 items-center gap-3 px-4 md:px-6">
+          <span className="flex items-center gap-2.5 text-ink">
+            <LogoMark size={22} className="text-ink-secondary" />
+            <span className="mono text-sm font-medium tracking-tight">agent-tracer</span>
           </span>
-          <span className="rounded-full border border-hairline px-2 py-0.5 text-[11px] text-ink-muted">
-            Shared read-only view
+          <span className="h-5 w-px bg-hairline" aria-hidden />
+          <h1 className="title-bracket text-[15px] text-ink">Shared Trace</h1>
+          <span className="mono ml-auto rounded-lg border border-hairline bg-surface-1 px-2.5 py-1 text-[11px] text-ink-muted">
+            Read-only
           </span>
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 py-6">
+      <main className="px-4 py-5 md:px-6">
         {shared.isLoading ? (
           <Spinner label="Loading shared trace…" />
         ) : shared.error || !shared.data ? (
           <EmptyState title="This share link is invalid, expired, or was revoked" />
         ) : (
           <>
-            <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
-              <h1 className="text-lg font-semibold">{shared.data.trace.name}</h1>
+            <div className="mb-4 flex flex-wrap items-center gap-3">
+              <h2 className="mono text-xl text-ink">{shared.data.trace.name}</h2>
               <StatusBadge status={shared.data.trace.status} />
-              <span className="text-xs text-ink-muted">
-                from project “{shared.data.project_name}”
-              </span>
-              <dl className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-muted">
-                <span className="tabular-nums">
-                  {formatDuration(shared.data.trace.duration_ms)}
-                </span>
-                <span>{shared.data.trace.span_count} spans</span>
-                <span className="tabular-nums">
-                  {formatTokens(
-                    shared.data.trace.input_tokens + shared.data.trace.output_tokens,
-                  )}{" "}
-                  tokens
-                </span>
-                <span className="tabular-nums">{formatCost(shared.data.trace.cost_usd)}</span>
-              </dl>
             </div>
 
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
+            <div className="mb-5">
+              <MetricRow
+                items={[
+                  { label: "Project", value: shared.data.project_name },
+                  { label: "Duration", value: formatDuration(shared.data.trace.duration_ms) },
+                  { label: "Spans", value: shared.data.trace.span_count },
+                  { label: "LLM calls", value: shared.data.trace.llm_call_count },
+                  {
+                    label: "Tokens",
+                    value: formatTokens(
+                      shared.data.trace.input_tokens + shared.data.trace.output_tokens,
+                    ),
+                  },
+                  { label: "Cost", value: formatCost(shared.data.trace.cost_usd) },
+                ]}
+              />
+            </div>
+
+            <div className="grid gap-5 xl:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
               <Waterfall
                 spans={spans}
                 selectedId={selectedSpanId}
