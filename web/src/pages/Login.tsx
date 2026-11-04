@@ -90,9 +90,11 @@ export function LoginPage() {
               : "Already have an account? Sign in"}
           </button>
         </form>
-        <p className="mt-4 text-center text-xs text-ink-muted">
-          Seeded demo: demo@agenttracer.dev / demo-password
-        </p>
+        {!import.meta.env.VITE_API_BASE_URL && (
+          <p className="mt-4 text-center text-xs text-ink-muted">
+            Seeded demo: demo@agenttracer.dev / demo-password
+          </p>
+        )}
       </div>
     </div>
   );

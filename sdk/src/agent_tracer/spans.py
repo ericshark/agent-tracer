@@ -2,14 +2,14 @@
 from __future__ import annotations
 
 import traceback as tb_module
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from .serialize import safe_json
 
 
 def _now_iso() -> str:
-    return datetime.now(UTC).isoformat()
+    return datetime.now(timezone.utc).isoformat()
 
 
 class SpanHandle:

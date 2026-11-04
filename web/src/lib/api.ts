@@ -14,6 +14,12 @@ import type {
   User,
 } from "./types";
 
+const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/+$/, "");
+
+export function apiUrl(path: string): string {
+  return apiBaseUrl + path;
+}
+
 const TOKEN_KEY = "at-token";
 
 export function getToken(): string | null {
@@ -41,7 +47,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken();
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  const response = await fetch(path, { ...options, headers });
+  const response = await fetch(apiUrl(path), { ...options, headers });
   if (response.status === 204) return undefined as T;
 
   let body: unknown = null;

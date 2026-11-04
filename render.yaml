@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: agent-tracer-api
+    runtime: python
+    region: virginia
+    plan: starter
+    branch: main
+    rootDir: server
+    buildCommand: pip install .
+    preDeployCommand: alembic upgrade head
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port "$PORT" --workers 1
+    healthCheckPath: /readyz
+    autoDeployTrigger: off
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.12
+      - key: ENVIRONMENT
+        value: production
+      - key: AUTH_CLIENT_IP_HEADER
+        value: cf-connecting-ip
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: CORS_ORIGINS
+        sync: false

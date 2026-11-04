@@ -14,7 +14,7 @@ _session_factory: async_sessionmaker[AsyncSession] | None = None
 
 
 def _build_engine(url: str) -> AsyncEngine:
-    kwargs: dict = {"pool_pre_ping": True}
+    kwargs: dict = {"pool_pre_ping": True, "pool_size": 5, "max_overflow": 2}
     if url.startswith("sqlite"):
         # SQLite is supported for local hacking and tests only.
         from sqlalchemy.pool import StaticPool

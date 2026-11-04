@@ -1,6 +1,8 @@
 import uuid
 from datetime import UTC
 
+from app.config import get_settings
+
 from tests.conftest import make_span
 
 
@@ -14,6 +16,14 @@ async def test_ingest_requires_api_key(client):
         "/v1/ingest", json={"spans": []}, headers={"X-API-Key": "at_" + "0" * 48}
     )
     assert bad.status_code == 401
+
+
+async def test_ingest_rejects_batches_over_project_limit(user_client, api_key, monkeypatch):
+    client, _, _ = user_client
+    monkeypatch.setattr(get_settings(), "ingest_rate_limit_batches", 1)
+    payload = {"spans": [make_span(uuid.uuid4().hex, "a" * 16)]}
+    assert (await client.post("/v1/ingest", json=payload, headers=auth(api_key))).status_code == 200
+    assert (await client.post("/v1/ingest", json=payload, headers=auth(api_key))).status_code == 429
 
 
 async def test_ingest_creates_trace_and_spans(user_client, project, api_key):

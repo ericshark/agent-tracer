@@ -24,8 +24,11 @@ class Settings(BaseSettings):
     # Ingest guardrails
     max_ingest_body_bytes: int = 10 * 1024 * 1024  # 10 MiB
     max_spans_per_batch: int = 1000
+    ingest_rate_limit_batches: int = 120
+    ingest_rate_limit_window_seconds: int = 60
 
     # Auth endpoint rate limiting (per IP)
+    auth_client_ip_header: str | None = None
     auth_rate_limit_attempts: int = 20
     auth_rate_limit_window_seconds: int = 60
 

@@ -1,6 +1,7 @@
 import time
 import uuid
 from collections import defaultdict, deque
+from ipaddress import ip_address
 
 from fastapi import Depends, HTTPException, Path, Query, Request, status
 from sqlalchemy import select
@@ -68,11 +69,18 @@ async def get_ingest_project(
     project = await db.get(Project, api_key.project_id)
     if project is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid API key")
+    settings = get_settings()
+    if not ingest_rate_limiter.check(
+        str(project.id),
+        settings.ingest_rate_limit_batches,
+        settings.ingest_rate_limit_window_seconds,
+    ):
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "Ingest rate limit exceeded")
     return project
 
 
 class RateLimiter:
-    """Small in-memory sliding-window limiter for the auth endpoints."""
+    """Small in-memory sliding-window limiter for auth and ingestion."""
 
     def __init__(self) -> None:
         self._hits: dict[str, deque[float]] = defaultdict(deque)
@@ -92,11 +100,20 @@ class RateLimiter:
 
 
 auth_rate_limiter = RateLimiter()
+ingest_rate_limiter = RateLimiter()
 
 
 async def enforce_auth_rate_limit(request: Request) -> None:
     settings = get_settings()
     client_ip = request.client.host if request.client else "unknown"
+    # Configure this only behind an ingress that overwrites the named header.
+    if settings.auth_client_ip_header:
+        forwarded = request.headers.get(settings.auth_client_ip_header)
+        if forwarded:
+            try:
+                client_ip = str(ip_address(forwarded))
+            except ValueError:
+                pass
     ok = auth_rate_limiter.check(
         f"auth:{client_ip}",
         settings.auth_rate_limit_attempts,

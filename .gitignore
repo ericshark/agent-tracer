@@ -33,3 +33,6 @@ web/dist/
 *.db
 *.sqlite3
 pgdata/
+
+# Local agent worktrees
+.claude/worktrees/

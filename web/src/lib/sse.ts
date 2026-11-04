@@ -1,4 +1,4 @@
-import { getToken } from "./api";
+import { apiUrl, getToken } from "./api";
 import type { LiveEvent } from "./types";
 
 /**
@@ -15,14 +15,14 @@ export function subscribeLive(
   let stopped = false;
   let backoff = 1000;
 
-  const url = new URL(`/api/projects/${projectId}/events`, window.location.origin);
+  const url = new URL(apiUrl(`/api/projects/${projectId}/events`), window.location.origin);
   if (options.traceId) url.searchParams.set("trace_id", options.traceId);
 
   async function connect(): Promise<void> {
     while (!stopped) {
       try {
         const token = getToken();
-        const response = await fetch(url.pathname + url.search, {
+        const response = await fetch(url, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
           signal: controller.signal,
         });
