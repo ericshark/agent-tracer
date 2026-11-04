@@ -3,14 +3,13 @@ services:
     name: agent-tracer-api
     runtime: python
     region: virginia
-    plan: starter
+    plan: free
     branch: main
     rootDir: server
     buildCommand: pip install .
-    preDeployCommand: alembic upgrade head
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port "$PORT" --workers 1
     healthCheckPath: /readyz
-    autoDeployTrigger: off
+    autoDeployTrigger: checksPass
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.12

@@ -301,7 +301,8 @@ web/      React SPA — src/pages/, src/components/, src/lib/, src/test/
 Connect both hosting projects to GitHub `main`. Vercel uses the `web/` root
 and its Vite preset. Set `VITE_API_BASE_URL` to the public Render origin so both
 HTTP requests and live events reach the same backend. The Render Blueprint
-builds from `server/` and runs Alembic before starting one worker. Set
+builds from `server/` and starts one worker on Render Free. Run the reviewed
+Alembic migrations separately before deploying a revision that needs them. Set
 `CORS_ORIGINS` to the production Vercel origin and keep the generated
 `SECRET_KEY` stable across deployments.
 
@@ -309,4 +310,5 @@ Use a dedicated Supabase project with its Data API disabled. Set Render's
 `DATABASE_URL` to the asyncpg session-pooler URL with verified TLS
 (`ssl=verify-full`). Keep that URL in Render secrets. Review the migration
 before releasing and verify `/readyz`, cross-account isolation, an SDK ingest,
-a dashboard live update, and simulated replay before inviting users.
+a dashboard live update, and simulated replay before inviting users. Render Free
+sleeps after inactivity, so the first request can take about a minute.
