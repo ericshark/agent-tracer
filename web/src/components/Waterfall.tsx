@@ -5,8 +5,8 @@ import { buildSpanTree, timeExtent, type SpanNode } from "../lib/spanTree";
 import type { Span, SpanKind } from "../lib/types";
 import { KIND_COLOR, KindBadge } from "./ui";
 
-const ROW_HEIGHT = 30;
-const BAR_HEIGHT = 8;
+const ROW_HEIGHT = 32;
+const BAR_HEIGHT = 6;
 
 const LEGEND_KINDS: SpanKind[] = ["AGENT", "LLM", "TOOL", "CHAIN", "RETRIEVER", "GUARDRAIL"];
 
@@ -54,14 +54,14 @@ export function Waterfall({
 
   return (
     <div className="card overflow-hidden">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-hairline px-4 py-2">
-        <h3 className="text-sm font-medium">Execution timeline</h3>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-b border-hairline px-5 py-3">
+        <h3 className="mono text-[13px] text-ink-secondary">Execution Timeline</h3>
         <div className="flex flex-wrap items-center gap-3">
           {presentKinds.map((kind) => (
             <KindBadge key={kind} kind={kind} />
           ))}
         </div>
-        <span className="ml-auto text-xs tabular-nums text-ink-muted">
+        <span className="mono ml-auto text-[11px] text-ink-muted tabular-nums">
           {formatDuration(total)} total
         </span>
       </div>
@@ -85,8 +85,8 @@ export function Waterfall({
                 type="button"
                 onClick={() => onSelect(span)}
                 aria-pressed={isSelected}
-                className={`grid w-full grid-cols-[minmax(220px,300px)_1fr] items-center gap-2 border-b border-hairline px-2 text-left transition-colors last:border-0 ${
-                  isSelected ? "bg-accent-soft" : "hover:bg-surface-2/60"
+                className={`grid w-full grid-cols-[minmax(220px,300px)_1fr] items-center gap-2 border-b border-hairline px-3 text-left transition-colors last:border-0 ${
+                  isSelected ? "bg-accent-soft shadow-[inset_2px_0_0_var(--accent)]" : "hover:bg-surface-2/60"
                 }`}
                 style={{ height: ROW_HEIGHT }}
               >
@@ -116,7 +116,7 @@ export function Waterfall({
                     className="h-2 w-2 shrink-0 rounded-[2px]"
                     style={{ background: KIND_COLOR[span.kind] ?? KIND_COLOR.UNKNOWN }}
                   />
-                  <span className="truncate text-[13px]">{span.name}</span>
+                  <span className="mono truncate text-[12.5px] text-ink">{span.name}</span>
                   {span.status === "error" && (
                     <span className="shrink-0 text-[11px] font-semibold text-critical" title="Error">
                       ✕
@@ -129,10 +129,14 @@ export function Waterfall({
                   )}
                 </span>
 
-                {/* timing cell */}
+                {/* timing cell, drawn over a faint dotted track */}
                 <span className="relative block h-full">
                   <span
-                    className={`absolute top-1/2 -translate-y-1/2 rounded-[4px] ${running ? "live-dot" : ""}`}
+                    aria-hidden
+                    className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 border-t border-dotted border-baseline"
+                  />
+                  <span
+                    className={`absolute top-1/2 -translate-y-1/2 rounded-full ${running ? "live-dot" : ""}`}
                     style={{
                       left: `${leftPct}%`,
                       width: `${widthPct}%`,
@@ -141,7 +145,7 @@ export function Waterfall({
                     }}
                   />
                   <span
-                    className="absolute top-1/2 -translate-y-1/2 whitespace-nowrap text-[10px] tabular-nums text-ink-muted"
+                    className="mono absolute top-1/2 -translate-y-1/2 whitespace-nowrap text-[10px] text-ink-muted tabular-nums"
                     style={
                       leftPct + widthPct < 82
                         ? { left: `calc(${leftPct + widthPct}% + 6px)` }

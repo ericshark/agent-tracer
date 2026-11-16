@@ -21,7 +21,7 @@ export function ComparePage() {
 
   if (!base || !other) {
     return (
-      <Layout>
+      <Layout title="Compare">
         <EmptyState title="Pick two traces to compare">
           Use the “Compare” buttons in the trace list to select a base and a second trace.
         </EmptyState>
@@ -30,10 +30,10 @@ export function ComparePage() {
   }
 
   return (
-    <Layout>
-      <nav className="mb-3 text-xs text-ink-muted">
+    <Layout title="Compare">
+      <nav className="mono mb-3 text-[11px] text-ink-muted">
         <Link to={`/projects/${projectId}`} className="hover:text-ink-secondary">
-          Traces
+          Overview
         </Link>
         <span className="mx-1.5">/</span>
         Compare
@@ -45,21 +45,29 @@ export function ComparePage() {
         <EmptyState title="Could not load the comparison" />
       ) : diff.data ? (
         <>
-          <div className="mb-4 grid gap-3 md:grid-cols-2">
+          <div className="mb-4 grid gap-4 md:grid-cols-2">
             <TraceCard title="Base" trace={diff.data.base} projectId={projectId!} />
             <TraceCard title="Compared to" trace={diff.data.other} projectId={projectId!} />
           </div>
 
-          <div className="mb-4 flex flex-wrap gap-x-5 gap-y-1 text-xs text-ink-secondary">
-            <span>{diff.data.summary.matched} matched</span>
-            <span className="text-good">+{diff.data.summary.added} added</span>
-            <span className="text-critical">-{diff.data.summary.removed} removed</span>
-            <span className="text-accent">{diff.data.summary.changed} changed</span>
+          <div className="mono mb-4 flex flex-wrap gap-2 text-[11px]">
+            <span className="rounded-full border border-hairline px-2.5 py-[3px] text-ink-secondary">
+              {diff.data.summary.matched} matched
+            </span>
+            <span className="rounded-full border border-good/45 bg-good/10 px-2.5 py-[3px] text-good">
+              +{diff.data.summary.added} added
+            </span>
+            <span className="rounded-full border border-critical/45 bg-critical/10 px-2.5 py-[3px] text-critical">
+              -{diff.data.summary.removed} removed
+            </span>
+            <span className="rounded-full border border-warning/45 bg-warning/10 px-2.5 py-[3px] text-warning">
+              {diff.data.summary.changed} changed
+            </span>
           </div>
 
           <div className="card overflow-x-auto">
             <div className="min-w-[860px]">
-              <div className="grid grid-cols-[minmax(240px,1fr)_repeat(2,minmax(180px,1fr))_minmax(200px,1fr)] gap-2 border-b border-hairline px-4 py-2 text-[11px] font-medium text-ink-muted">
+              <div className="grid grid-cols-[minmax(240px,1fr)_repeat(2,minmax(180px,1fr))_minmax(200px,1fr)] gap-2 border-b border-hairline px-5 py-2.5 text-xs font-medium text-ink-secondary mono">
                 <span>Step</span>
                 <span>Base</span>
                 <span>Compared</span>
@@ -86,18 +94,18 @@ function TraceCard({
   projectId: string;
 }) {
   return (
-    <div className="card p-4">
-      <p className="text-xs text-ink-muted">{title}</p>
-      <div className="mt-1 flex flex-wrap items-center gap-2">
+    <div className="card p-5">
+      <p className="mono text-[11px] tracking-wide text-ink-muted uppercase">{title}</p>
+      <div className="mt-2 flex flex-wrap items-center gap-2.5">
         <Link
           to={`/projects/${projectId}/traces/${trace.id}`}
-          className="font-medium hover:text-accent"
+          className="mono text-[15px] text-ink hover:text-accent"
         >
           {trace.name}
         </Link>
         <StatusBadge status={trace.status} />
       </div>
-      <p className="mt-1 text-xs tabular-nums text-ink-muted">
+      <p className="mono mt-2 text-[11px] text-ink-muted tabular-nums">
         {formatDuration(trace.duration_ms)} · {trace.span_count} spans ·{" "}
         {formatTokens(trace.input_tokens + trace.output_tokens)} tokens ·{" "}
         {formatCost(trace.cost_usd)} · {new Date(trace.started_at).toLocaleString()}
@@ -119,10 +127,10 @@ function DiffRow({ node, depth }: { node: DiffNode; depth: number }) {
 
   return (
     <>
-      <div className="grid grid-cols-[minmax(240px,1fr)_repeat(2,minmax(180px,1fr))_minmax(200px,1fr)] items-center gap-2 border-b border-hairline px-4 py-2 last:border-0 hover:bg-surface-2/50">
+      <div className="grid grid-cols-[minmax(240px,1fr)_repeat(2,minmax(180px,1fr))_minmax(200px,1fr)] items-center gap-2 border-b border-hairline px-5 py-2 last:border-0 hover:bg-surface-2/60">
         <span className="flex min-w-0 items-center gap-2" style={{ paddingLeft: depth * 16 }}>
           <KindBadge kind={span.kind} />
-          <span className="truncate text-[13px]">{span.name}</span>
+          <span className="mono truncate text-[13px]">{span.name}</span>
         </span>
         <SpanCell span={node.base} />
         <SpanCell span={node.other} />
@@ -182,7 +190,7 @@ function DeltaSummary({ node }: { node: DiffNode }) {
     return <span className="text-[11px] text-ink-muted">no change</span>;
   }
   return (
-    <span className="flex flex-wrap gap-x-2 text-[11px] tabular-nums">
+    <span className="mono flex flex-wrap gap-x-2 text-[11px] tabular-nums">
       {parts.map((part, i) => (
         <span key={i} className={part.className}>
           {part.text}

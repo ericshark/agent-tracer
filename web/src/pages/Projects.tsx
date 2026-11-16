@@ -2,8 +2,9 @@ import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { FolderIcon, PlusIcon } from "../components/icons";
 import { Layout } from "../components/Layout";
-import { EmptyState, Modal, PrimaryButton, Spinner, TextInput } from "../components/ui";
+import { EmptyState, IconChip, Modal, PrimaryButton, Spinner, TextInput } from "../components/ui";
 import { api } from "../lib/api";
 import { formatTimeAgo } from "../lib/format";
 
@@ -30,12 +31,15 @@ export function ProjectsPage() {
   };
 
   return (
-    <Layout>
-      <div className="mb-5 flex items-center justify-between">
-        <h1 className="text-lg font-semibold">Projects</h1>
-        <PrimaryButton onClick={() => setCreating(true)}>+ New project</PrimaryButton>
-      </div>
-
+    <Layout
+      title="Projects"
+      actions={
+        <PrimaryButton onClick={() => setCreating(true)} className="!py-1 text-xs">
+          <PlusIcon size={14} />
+          New project
+        </PrimaryButton>
+      }
+    >
       {projects.isLoading ? (
         <Spinner label="Loading projects…" />
       ) : (projects.data ?? []).length === 0 ? (
@@ -44,20 +48,32 @@ export function ProjectsPage() {
           collecting traces.
         </EmptyState>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {projects.data!.map((project) => (
             <Link
               key={project.id}
               to={`/projects/${project.id}`}
-              className="card group p-4 transition-colors hover:border-accent/50"
+              className="card group flex flex-col p-5 transition-colors hover:border-accent/40"
             >
-              <h2 className="font-medium group-hover:text-accent">{project.name}</h2>
-              <p className="mt-1 line-clamp-2 min-h-8 text-sm text-ink-muted">
+              <div className="flex items-center gap-2.5">
+                <IconChip>
+                  <FolderIcon size={14} />
+                </IconChip>
+                <h2 className="mono truncate text-[15px] text-ink group-hover:text-accent">
+                  {project.name}
+                </h2>
+              </div>
+              <p className="mt-3 line-clamp-2 min-h-10 text-sm text-ink-secondary">
                 {project.description ?? "No description"}
               </p>
-              <p className="mt-3 text-xs text-ink-muted">
-                created {formatTimeAgo(project.created_at)}
-              </p>
+              <div className="mt-4 flex items-center justify-between border-t border-hairline pt-3">
+                <span className="mono text-[11px] text-ink-muted">
+                  created {formatTimeAgo(project.created_at)}
+                </span>
+                <span className="mono text-[11px] text-ink-muted group-hover:text-accent">
+                  Open →
+                </span>
+              </div>
             </Link>
           ))}
         </div>

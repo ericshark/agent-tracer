@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { ShareIcon } from "../components/icons";
 import { Layout } from "../components/Layout";
 import { ShareModal } from "../components/ShareModal";
+import { MetricRow } from "../components/StatTile";
 import { SpanInspector } from "../components/SpanInspector";
 import { Waterfall } from "../components/Waterfall";
 import { GhostButton, Spinner, StatusBadge } from "../components/ui";
@@ -51,7 +53,7 @@ export function TraceDetailPage() {
 
   if (trace.isLoading || !trace.data) {
     return (
-      <Layout>
+      <Layout title="Trace">
         <Spinner label="Loading trace…" />
       </Layout>
     );
@@ -60,41 +62,51 @@ export function TraceDetailPage() {
   const data = trace.data;
 
   return (
-    <Layout>
-      <nav className="mb-3 text-xs text-ink-muted">
+    <Layout
+      title="Trace"
+      actions={
+        <GhostButton onClick={() => setSharing(true)} className="!py-1 text-xs">
+          <ShareIcon size={13} />
+          Share
+        </GhostButton>
+      }
+    >
+      <nav className="mono mb-3 text-[11px] text-ink-muted">
         <Link to={`/projects/${projectId}`} className="hover:text-ink-secondary">
-          Traces
+          Overview
         </Link>
         <span className="mx-1.5">/</span>
-        <span className="mono">{data.trace_id.slice(0, 16)}…</span>
+        <span>{data.trace_id.slice(0, 16)}…</span>
       </nav>
 
-      <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
-        <h1 className="text-lg font-semibold">{data.name}</h1>
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <h2 className="mono text-xl text-ink">{data.name}</h2>
         <StatusBadge status={data.status} />
-        <dl className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-muted">
-          <span className="tabular-nums">{formatDuration(data.duration_ms)}</span>
-          <span>{data.span_count} spans</span>
-          <span>{data.llm_call_count} LLM calls</span>
-          <span className="tabular-nums">
-            {formatTokens(data.input_tokens)} in / {formatTokens(data.output_tokens)} out
-          </span>
-          <span className="tabular-nums">{formatCost(data.cost_usd)}</span>
-          {data.session_id && <span>session {data.session_id}</span>}
-        </dl>
-        <div className="ml-auto flex items-center gap-2">
-          <GhostButton onClick={() => setSharing(true)}>Share</GhostButton>
-          <Link to={`/projects/${projectId}?`} className="hidden" aria-hidden />
-        </div>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
+      <div className="mb-5">
+        <MetricRow
+          items={[
+            { label: "Duration", value: formatDuration(data.duration_ms) },
+            { label: "Spans", value: data.span_count },
+            { label: "LLM calls", value: data.llm_call_count },
+            {
+              label: "Tokens in / out",
+              value: `${formatTokens(data.input_tokens)} / ${formatTokens(data.output_tokens)}`,
+            },
+            { label: "Cost", value: formatCost(data.cost_usd) },
+            { label: "Session", value: data.session_id ?? "—" },
+          ]}
+        />
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
         <Waterfall
           spans={spans}
           selectedId={selectedSpanId}
           onSelect={(span) => setSelectedSpanId(span.id)}
         />
-        <div className="min-h-[420px] xl:sticky xl:top-20 xl:max-h-[calc(100vh-6rem)]">
+        <div className="min-h-[420px] xl:sticky xl:top-[72px] xl:max-h-[calc(100vh-6rem)]">
           {selectedSpan ? (
             <SpanInspector span={selectedSpan} projectId={projectId} />
           ) : (

@@ -59,7 +59,7 @@ export function ReplayPanel({ span, projectId }: { span: Span; projectId: string
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="rounded-md border border-hairline bg-surface-2/50 px-3 py-2 text-xs text-ink-muted">
+      <div className="rounded-lg border border-hairline bg-surface-2/50 px-3 py-2 text-xs text-ink-muted">
         Replays re-run <em>only this model call</em> with the recorded (or edited) input — no
         tools execute, and the original trace is never modified. Without a provider key
         (
@@ -75,7 +75,7 @@ export function ReplayPanel({ span, projectId }: { span: Span; projectId: string
           <select
             value={provider}
             onChange={(event) => setProvider(event.target.value)}
-            className="rounded-md border border-hairline bg-surface-2 px-2 py-1.5 text-sm text-ink"
+            className="rounded-lg border border-hairline bg-surface-2 px-2 py-1.5 text-sm text-ink"
           >
             <option value="">Auto</option>
             <option value="simulation">Simulation (offline)</option>
@@ -109,7 +109,7 @@ export function ReplayPanel({ span, projectId }: { span: Span; projectId: string
               value={system}
               onChange={(e) => setSystem(e.target.value)}
               rows={2}
-              className="mono rounded-md border border-hairline bg-surface-2 px-3 py-2 text-xs text-ink"
+              className="mono rounded-lg border border-hairline bg-surface-2 px-3 py-2 text-xs text-ink"
             />
           </label>
           <label className="flex flex-col gap-1 text-xs text-ink-muted">
@@ -119,14 +119,14 @@ export function ReplayPanel({ span, projectId }: { span: Span; projectId: string
               onChange={(e) => setMessagesText(e.target.value)}
               rows={8}
               spellCheck={false}
-              className="mono rounded-md border border-hairline bg-surface-2 px-3 py-2 text-xs text-ink"
+              className="mono rounded-lg border border-hairline bg-surface-2 px-3 py-2 text-xs text-ink"
             />
           </label>
         </div>
       )}
 
       {mutationError && (
-        <p className="rounded-md border border-critical/40 bg-critical/10 px-3 py-2 text-xs text-critical">
+        <p className="rounded-lg border border-critical/40 bg-critical/10 px-3 py-2 text-xs text-critical">
           {mutationError}
         </p>
       )}
@@ -151,7 +151,7 @@ export function ReplayPanel({ span, projectId }: { span: Span; projectId: string
 
 function ReplayResult({ replay }: { replay: Replay }) {
   return (
-    <div className="rounded-md border border-hairline p-3">
+    <div className="rounded-lg border border-hairline p-3">
       <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-muted">
         <span
           className={`font-medium ${replay.status === "ok" ? "text-good" : "text-critical"}`}
