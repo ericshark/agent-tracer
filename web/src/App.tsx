@@ -10,6 +10,7 @@ import type { ReactNode } from "react";
 
 import { Spinner } from "./components/ui";
 import { ComparePage } from "./pages/ComparePage";
+import { LandingPage } from "./pages/Landing";
 import { LoginPage } from "./pages/Login";
 import { ProjectOverviewPage } from "./pages/ProjectOverview";
 import { ProjectsPage } from "./pages/Projects";
@@ -46,6 +47,7 @@ export default function App() {
       <AuthProvider>
         <BrowserRouter>
           <Routes>
+            <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/share/:token" element={<SharePage />} />
             <Route
@@ -88,7 +90,7 @@ export default function App() {
                 </RequireAuth>
               }
             />
-            <Route path="*" element={<Navigate to="/projects" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
       </AuthProvider>

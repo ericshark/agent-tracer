@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Link } from "react-router-dom";
 
 import type { SpanKind, TraceStatus } from "../lib/types";
 import { CloseIcon, SearchIcon } from "./icons";
@@ -340,6 +341,30 @@ export function GhostButton(props: React.ButtonHTMLAttributes<HTMLButtonElement>
       {...rest}
       className={`inline-flex items-center justify-center gap-1.5 rounded-lg border border-hairline bg-surface-2 px-3 py-1.5 text-sm text-ink transition-colors hover:bg-surface-3 disabled:cursor-not-allowed disabled:opacity-50 ${className ?? ""}`}
     />
+  );
+}
+
+const PRIMARY_CLS =
+  "inline-flex items-center justify-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink transition-colors hover:bg-accent-strong";
+const GHOST_CLS =
+  "inline-flex items-center justify-center gap-1.5 rounded-lg border border-hairline bg-surface-2 px-3 py-1.5 text-sm text-ink transition-colors hover:bg-surface-3";
+
+/** Router link styled like PrimaryButton / GhostButton. */
+export function LinkButton({
+  to,
+  variant = "primary",
+  className,
+  children,
+}: {
+  to: string;
+  variant?: "primary" | "ghost";
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <Link to={to} className={`${variant === "primary" ? PRIMARY_CLS : GHOST_CLS} ${className ?? ""}`}>
+      {children}
+    </Link>
   );
 }
 

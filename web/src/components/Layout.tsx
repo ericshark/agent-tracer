@@ -21,6 +21,7 @@ import {
   SearchIcon,
   SunIcon,
 } from "./icons";
+import { useTheme } from "../lib/theme";
 import { Menu, MenuItem } from "./ui";
 
 function readPref(key: string): string | null {
@@ -37,17 +38,6 @@ function writePref(key: string, value: string) {
   } catch {
     /* private mode */
   }
-}
-
-function useTheme(): [string, () => void] {
-  const [theme, setTheme] = useState<string>(
-    () => document.documentElement.dataset.theme ?? "dark",
-  );
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    writePref("at-theme", theme);
-  }, [theme]);
-  return [theme, () => setTheme((t) => (t === "dark" ? "light" : "dark"))];
 }
 
 export function Layout({
