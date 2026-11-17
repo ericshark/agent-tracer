@@ -17,8 +17,9 @@ after checking database compatibility. Free Render can sleep when idle.
 
 The dashboard domain uses a DNS-only Cloudflare CNAME to the project-specific
 Vercel DNS target. The old Vercel address remains available. The API remains at
-its existing Render hostname; no API domain was changed. Add the new dashboard
-origin to Render `CORS_ORIGINS` while retaining the old origin. Domain HTTPS and desktop/mobile browser loading were verified on November 16,
-2026. The API CORS update is pending Render workspace confirmation required
-by the connector; dashboard authentication/API requests at the new origin have
-not been verified.
+its existing Render hostname; no API domain was changed. Render `CORS_ORIGINS` includes both
+`https://agent-tracer.ericzwierzynski.dev` and the old Vercel origin. Domain HTTPS
+and desktop/mobile browser loading were verified on November 16, 2026.
+The CORS update deploys through Render; verify `/readyz` and an OPTIONS request
+with the new dashboard Origin header after deployment. Authenticated user flows
+were not tested during the domain change.
