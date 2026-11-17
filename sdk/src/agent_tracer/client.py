@@ -311,6 +311,19 @@ class AgentTracer:
             payload["external_id"] = external_id
         self._exporter.enqueue_score(payload)
 
+    # ----------------------------------------------------------- experiments
+
+    def experiment(self, name: str, **kwargs: Any) -> Any:
+        """Run `task` over a dataset and score the results.
+
+        See `agent_tracer.experiments.run_experiment` for the arguments:
+        `dataset`, `task`, `evaluators`, `server_evaluators`, `concurrency`,
+        `metadata`, `wait`, `timeout`.
+        """
+        from .experiments import run_experiment
+
+        return run_experiment(self, name, **kwargs)
+
     # -------------------------------------------------------------- plumbing
 
     def _finish_span(self, span: SpanHandle) -> None:

@@ -16,6 +16,7 @@ Quick start:
 from .api import ApiError
 from .client import AgentTracer, current_span, current_trace
 from .datasets import Dataset, DatasetItem
+from .experiments import ExperimentResult, evaluator
 from .ids import new_span_id, new_trace_id
 from .spans import SpanHandle, TraceHandle
 
@@ -26,11 +27,13 @@ __all__ = [
     "ApiError",
     "Dataset",
     "DatasetItem",
+    "ExperimentResult",
     "SpanHandle",
     "TraceHandle",
     "__version__",
     "current_span",
     "current_trace",
+    "evaluator",
     "new_span_id",
     "new_trace_id",
 ]

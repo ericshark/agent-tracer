@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from sqlalchemy import (
     JSON,
     BigInteger,
+    Boolean,
     DateTime,
     Float,
     ForeignKey,
@@ -411,3 +412,86 @@ class DatasetItem(TimestampedUuidMixin, Base):
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     dataset: Mapped[Dataset] = relationship(back_populates="items")
+
+
+class Evaluator(TimestampedUuidMixin, Base):
+    """A configured instance of an evaluator template (see app.core.evals)."""
+
+    __tablename__ = "evaluators"
+    __table_args__ = (UniqueConstraint("project_id", "name", name="uq_evaluator_name"),)
+
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    # Also the name of the score it produces.
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    template: Mapped[str] = mapped_column(String(64), nullable=False)
+    config: Mapped[dict] = mapped_column(JSONVariant, nullable=False, default=dict)
+
+
+class Experiment(TimestampedUuidMixin, Base):
+    """One run of a target (a prompt, a model, or your own code) over a dataset."""
+
+    __tablename__ = "experiments"
+    __table_args__ = (Index("ix_experiments_project_created", "project_id", "created_at"),)
+
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    dataset_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("datasets.id", ondelete="SET NULL"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+    # pending | running | completed | failed
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    # {"type": "sdk"} | {"type": "prompt", "model": …, "system": …, "messages": […]}
+    target: Mapped[dict] = mapped_column(JSONVariant, nullable=False, default=dict)
+    evaluator_ids: Mapped[list] = mapped_column(JSONVariant, nullable=False, default=list)
+    # Aggregates written when the run finishes (see core.experiments.summarize).
+    summary: Mapped[dict | None] = mapped_column(JSONVariant)
+    meta: Mapped[dict | None] = mapped_column("metadata", JSONVariant)
+    error: Mapped[str | None] = mapped_column(Text)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    items: Mapped[list["ExperimentItem"]] = relationship(
+        back_populates="experiment", cascade="all, delete-orphan", passive_deletes=True
+    )
+
+
+class ExperimentItem(TimestampedUuidMixin, Base):
+    """One test case's result within an experiment."""
+
+    __tablename__ = "experiment_items"
+
+    experiment_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("experiments.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    dataset_item_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("dataset_items.id", ondelete="SET NULL"), index=True
+    )
+    # Snapshots, so editing the dataset later never rewrites a past result.
+    input: Mapped[dict | list | str | None] = mapped_column(JSONVariant)
+    expected_output: Mapped[dict | list | str | None] = mapped_column(JSONVariant)
+    output: Mapped[dict | list | str | None] = mapped_column(JSONVariant)
+    # pending | ok | error
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    error: Mapped[str | None] = mapped_column(Text)
+    # Wire id of the trace the run produced; resolved to trace_pk once ingested.
+    trace_id: Mapped[str | None] = mapped_column(String(32))
+    trace_pk: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("traces.id", ondelete="SET NULL")
+    )
+    latency_ms: Mapped[float | None] = mapped_column(Float)
+    input_tokens: Mapped[int | None] = mapped_column(BigInteger)
+    output_tokens: Mapped[int | None] = mapped_column(BigInteger)
+    cost_usd: Mapped[float | None] = mapped_column(Float)
+    # name → {"value", "data_type", "comment", "source"}; also mirrored as Score
+    # rows on the trace when there is one.
+    scores: Mapped[dict | None] = mapped_column(JSONVariant)
+    evaluated: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    experiment: Mapped[Experiment] = relationship(back_populates="items")

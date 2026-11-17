@@ -37,6 +37,11 @@ class Settings(BaseSettings):
     worker_mode: str = "inline"
     worker_concurrency: int = 2
 
+    # Model used by LLM-judge evaluators unless an evaluator overrides it.
+    default_judge_model: str = "claude-opus-5-5"
+    # Model calls made in parallel by one experiment run.
+    experiment_concurrency: int = 4
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

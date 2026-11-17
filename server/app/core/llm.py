@@ -70,6 +70,38 @@ class LLMResult:
         return json.loads(self.text)
 
 
+def parse_llm_input(raw: Any, system: str | None = None) -> tuple[list[dict], str | None]:
+    """Recorded LLM input → (messages, system).
+
+    Accepts `{"messages": [...], "system": "..."}`, a bare message list,
+    `{"prompt": "..."}` or a plain string. Raises ValueError otherwise.
+    """
+    if isinstance(raw, dict):
+        if system is None and isinstance(raw.get("system"), str):
+            system = raw["system"]
+        if isinstance(raw.get("messages"), list):
+            return _split_system(raw["messages"], system)
+        if isinstance(raw.get("prompt"), str):
+            return [{"role": "user", "content": raw["prompt"]}], system
+    elif isinstance(raw, list):
+        return _split_system(raw, system)
+    elif isinstance(raw, str):
+        return [{"role": "user", "content": raw}], system
+    raise ValueError("Not a recognisable model input")
+
+
+def _split_system(messages: list[Any], system: str | None) -> tuple[list[dict], str | None]:
+    out: list[dict] = []
+    for m in messages:
+        if not isinstance(m, dict):
+            continue
+        if m.get("role") == "system" and system is None and isinstance(m.get("content"), str):
+            system = m["content"]
+            continue
+        out.append(m)
+    return out, system
+
+
 async def load_credentials(db: AsyncSession, project_id: Any) -> Credentials:
     result = await db.execute(
         select(ProviderCredential).where(ProviderCredential.project_id == project_id)

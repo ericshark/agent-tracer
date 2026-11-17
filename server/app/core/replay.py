@@ -8,7 +8,6 @@ Safety model
 """
 
 import time
-from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,6 +18,7 @@ from app.core.llm import (
     complete,
     infer_provider,
     load_credentials,
+    parse_llm_input,
 )
 from app.core.pricing import estimate_cost
 from app.models import Replay, Span, User
@@ -33,37 +33,12 @@ def extract_llm_input(span: Span, payload: ReplayCreate) -> tuple[list[dict], st
     """Resolve the message list and system prompt for the replay."""
     if payload.messages is not None:
         return payload.messages, payload.system
-
-    system = payload.system
-    raw = span.input
-    if isinstance(raw, dict):
-        messages = raw.get("messages")
-        if system is None and isinstance(raw.get("system"), str):
-            system = raw["system"]
-        if isinstance(messages, list):
-            return _split_system(messages, system)
-        prompt = raw.get("prompt")
-        if isinstance(prompt, str):
-            return [{"role": "user", "content": prompt}], system
-    elif isinstance(raw, list):
-        return _split_system(raw, system)
-    elif isinstance(raw, str):
-        return [{"role": "user", "content": raw}], system
-    raise ReplayError(
-        "This span has no replayable input. Provide `messages` explicitly to replay it."
-    )
-
-
-def _split_system(messages: list[Any], system: str | None) -> tuple[list[dict], str | None]:
-    out: list[dict] = []
-    for m in messages:
-        if not isinstance(m, dict):
-            continue
-        if m.get("role") == "system" and system is None and isinstance(m.get("content"), str):
-            system = m["content"]
-            continue
-        out.append(m)
-    return out, system
+    try:
+        return parse_llm_input(span.input, payload.system)
+    except ValueError:
+        raise ReplayError(
+            "This span has no replayable input. Provide `messages` explicitly to replay it."
+        ) from None
 
 
 async def execute_replay(

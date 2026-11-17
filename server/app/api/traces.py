@@ -22,6 +22,10 @@ from app.schemas.traces import (
 
 router = APIRouter(prefix="/api", tags=["traces"])
 
+# Experiment runs are real traces, but they are test traffic: keep them out of
+# the production list and stats unless asked for (`?environment=experiment`).
+NOT_EXPERIMENT = or_(Trace.environment.is_(None), Trace.environment != "experiment")
+
 
 @router.get("/projects/{project_id}/traces", response_model=TraceListResponse)
 async def list_traces(
@@ -48,6 +52,8 @@ async def list_traces(
         query = query.where(Trace.user_id == user_id)
     if environment:
         query = query.where(Trace.environment == environment)
+    else:
+        query = query.where(NOT_EXPERIMENT)
     if score_name:
         # Traces with at least one matching score in the requested range.
         scored = select(Score.trace_pk).where(
@@ -62,9 +68,7 @@ async def list_traces(
         pattern = f"%{q}%"
         query = query.where(or_(Trace.name.ilike(pattern), Trace.trace_id.ilike(pattern)))
 
-    total = (
-        await db.execute(select(func.count()).select_from(query.subquery()))
-    ).scalar_one()
+    total = (await db.execute(select(func.count()).select_from(query.subquery()))).scalar_one()
     if before is not None:
         # Keyset pagination: cheaper than a deep OFFSET on large projects.
         query = query.where(Trace.started_at < before)
@@ -98,7 +102,7 @@ async def project_stats(
                 Trace.input_tokens,
                 Trace.output_tokens,
                 Trace.cost_usd,
-            ).where(Trace.project_id == project.id, Trace.started_at >= cutoff)
+            ).where(Trace.project_id == project.id, Trace.started_at >= cutoff, NOT_EXPERIMENT)
         )
     ).all()
 
@@ -168,9 +172,7 @@ async def get_trace(
     spans = sorted(trace.spans, key=lambda s: as_utc(s.started_at))
     summary = TraceSummary.model_validate(trace)
     summary.scores = (await trace_score_briefs(db, [trace.id])).get(trace.id)
-    return TraceDetail(
-        **summary.model_dump(), spans=[SpanOut.model_validate(s) for s in spans]
-    )
+    return TraceDetail(**summary.model_dump(), spans=[SpanOut.model_validate(s) for s in spans])
 
 
 @router.delete("/traces/{trace_pk}", status_code=status.HTTP_204_NO_CONTENT)
