@@ -84,6 +84,7 @@ root `.env`. Exported environment variables override file values.
 | `CORS_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173`                    | Comma-separated allowed frontend origins.                      |
 | `ENVIRONMENT`  | `development`                                                    | Production rejects the default secret.                         |
 | `LOG_LEVEL`    | `INFO`                                                           | Backend log verbosity.                                         |
+| `WORKER_MODE`  | `inline`                                                         | `inline` runs background jobs in the API process; `external` expects `python -m app.worker`; `off` disables them. |
 
 For PostgreSQL, create the database with `createdb agent_tracer` using your local
 PostgreSQL tools and credentials. Replace the SQLite URL in `server/.env` with
@@ -118,8 +119,11 @@ Open the URL Vite prints. If a port is occupied, increment it, updating
 Stop both servers with Ctrl+C. The `make dev-api` and `make dev-web` shortcuts
 use ports 8000 and 5173; the explicit commands above select the development ports.
 
-There are no separate workers: live streaming uses in-process asyncio pub/sub,
-and the SDK batches in a background thread inside the instrumented application.
+No broker is required: live streaming uses in-process asyncio pub/sub, the SDK
+batches in a background thread inside the instrumented application, and
+background jobs are rows in the `jobs` table run by a worker inside the API
+process. To move them out of the API process, set `WORKER_MODE=external` and run
+`cd server && ../.venv/bin/python -m app.worker`.
 
 ## Using the Python SDK
 
@@ -162,7 +166,19 @@ API key is set.
 
 **Cost tracking:** send token counts and the server prices them from a built-in
 model table (Anthropic, OpenAI, and common OSS models); pass
-`span.set_usage(cost_usd=…)` to override.
+`span.set_usage(cost_usd=…)` to override. `input_tokens` means uncached input:
+report `cache_read_tokens` and `cache_creation_tokens` separately so they are
+priced at cache rates. Add or override a model's price per project with
+`PUT /api/projects/{id}/model-prices` (matched by model-name prefix).
+
+**Slicing dimensions:** `tracer.trace(..., user_id=, tags=, environment=,
+release=)` — or set `AGENT_TRACER_ENVIRONMENT` / `AGENT_TRACER_RELEASE` once.
+The trace list filters on `user_id` and `environment`. For streamed model calls,
+`span.mark_first_token()` records time-to-first-token.
+
+**API key scopes:** keys carry `ingest`, `read` and `write` scopes (all three by
+default). Create an ingest-only key for production services by passing
+`"scopes": ["ingest"]` when creating the key.
 
 ### Sending a sample trace without the SDK
 

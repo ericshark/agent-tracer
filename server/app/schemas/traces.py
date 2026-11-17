@@ -23,6 +23,10 @@ class TraceSummary(BaseModel):
     output_tokens: int
     cost_usd: float
     meta: dict | None = None
+    user_id: str | None = None
+    tags: list[str] | None = None
+    environment: str | None = None
+    release: str | None = None
 
 
 class SpanOut(BaseModel):
@@ -44,6 +48,10 @@ class SpanOut(BaseModel):
     model: str | None
     input_tokens: int | None
     output_tokens: int | None
+    cache_read_tokens: int | None = None
+    cache_creation_tokens: int | None = None
+    reasoning_tokens: int | None = None
+    ttft_ms: float | None = None
     cost_usd: float | None
     error_type: str | None
     error_message: str | None
@@ -59,6 +67,8 @@ class TraceListResponse(BaseModel):
     total: int
     limit: int
     offset: int
+    # Pass as `before` to fetch the next page without an offset scan.
+    next_cursor: datetime | None = None
 
 
 class StatsBucket(BaseModel):

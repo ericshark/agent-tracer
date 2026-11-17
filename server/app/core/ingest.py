@@ -12,9 +12,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.events import broker, project_channel
-from app.core.pricing import estimate_cost
+from app.core.pricing import PriceTable, build_price_table, estimate_cost
 from app.core.timeutil import as_utc
-from app.models import Project, Span, Trace
+from app.models import ModelPrice, Project, Span, Trace, utcnow
 from app.schemas.ingest import SpanIn, TraceIn
 from app.schemas.traces import SpanOut, TraceSummary
 
@@ -40,6 +40,8 @@ async def ingest_batch(
         select(Trace).where(Trace.project_id == project.id, Trace.trace_id.in_(all_trace_ids))
     )
     traces: dict[str, Trace] = {t.trace_id: t for t in result.scalars()}
+    overrides = await db.execute(select(ModelPrice).where(ModelPrice.project_id == project.id))
+    prices = build_price_table(overrides.scalars())
 
     accepted_spans = 0
     touched: list[Trace] = []
@@ -58,12 +60,17 @@ async def ingest_batch(
         elif meta is not None:
             _apply_trace_meta(trace, meta)
 
+        # One load of the trace's spans serves both the upsert and the aggregates.
+        loaded = await db.execute(select(Span).where(Span.trace_pk == trace.id))
+        spans: dict[str, Span] = {s.span_id: s for s in loaded.scalars()}
         if batch:
-            upserted = await _upsert_spans(db, project, trace, batch)
+            upserted = _upsert_spans(db, project, trace, batch, spans, prices)
             accepted_spans += len(upserted)
             touched_spans.extend((trace, s) for s in upserted)
 
-        await _recompute_aggregates(db, trace, explicit_status=meta.status if meta else None)
+        _recompute_aggregates(
+            trace, list(spans.values()), explicit_status=meta.status if meta else None
+        )
         touched.append(trace)
 
     await db.commit()
@@ -89,14 +96,16 @@ def _create_trace(
     name = (meta.name if meta else None) or (root.name if root else None)
     if not name:
         name = batch[0].name if batch else "trace"
-    from app.models import utcnow
-
     trace = Trace(
         project_id=project.id,
         trace_id=trace_id,
         name=name,
         session_id=meta.session_id if meta else None,
         meta=meta.metadata if meta else None,
+        user_id=meta.user_id if meta else None,
+        tags=meta.tags if meta else None,
+        environment=meta.environment if meta else None,
+        release=meta.release if meta else None,
         started_at=as_utc(started) or utcnow(),
         status="running",
     )
@@ -112,18 +121,28 @@ def _apply_trace_meta(trace: Trace, meta: TraceIn) -> None:
         trace.session_id = meta.session_id
     if meta.metadata is not None:
         trace.meta = meta.metadata
+    if meta.user_id:
+        trace.user_id = meta.user_id
+    if meta.tags is not None:
+        trace.tags = meta.tags
+    if meta.environment:
+        trace.environment = meta.environment
+    if meta.release:
+        trace.release = meta.release
     if meta.started_at:
         trace.started_at = as_utc(meta.started_at)
     if meta.ended_at:
         trace.ended_at = as_utc(meta.ended_at)
 
 
-async def _upsert_spans(
-    db: AsyncSession, project: Project, trace: Trace, batch: list[SpanIn]
+def _upsert_spans(
+    db: AsyncSession,
+    project: Project,
+    trace: Trace,
+    batch: list[SpanIn],
+    existing: dict[str, Span],
+    prices: PriceTable,
 ) -> list[Span]:
-    result = await db.execute(select(Span).where(Span.trace_pk == trace.id))
-    existing: dict[str, Span] = {s.span_id: s for s in result.scalars()}
-
     upserted: list[Span] = []
     for span_in in batch:
         span = existing.get(span_in.span_id)
@@ -137,12 +156,12 @@ async def _upsert_spans(
             )
             db.add(span)
             existing[span_in.span_id] = span
-        _merge_span(span, span_in)
+        _merge_span(span, span_in, prices)
         upserted.append(span)
     return upserted
 
 
-def _merge_span(span: Span, data: SpanIn) -> None:
+def _merge_span(span: Span, data: SpanIn, prices: PriceTable) -> None:
     """Newer non-null values win; a start event followed by an end event
     composes into one complete span."""
     span.name = data.name
@@ -166,6 +185,14 @@ def _merge_span(span: Span, data: SpanIn) -> None:
         span.input_tokens = data.input_tokens
     if data.output_tokens is not None:
         span.output_tokens = data.output_tokens
+    if data.cache_read_tokens is not None:
+        span.cache_read_tokens = data.cache_read_tokens
+    if data.cache_creation_tokens is not None:
+        span.cache_creation_tokens = data.cache_creation_tokens
+    if data.reasoning_tokens is not None:
+        span.reasoning_tokens = data.reasoning_tokens
+    if data.ttft_ms is not None:
+        span.ttft_ms = data.ttft_ms
     if data.error is not None:
         span.error_type = data.error.type
         span.error_message = data.error.message
@@ -173,19 +200,26 @@ def _merge_span(span: Span, data: SpanIn) -> None:
     if data.cost_usd is not None:
         span.cost_usd = data.cost_usd
     elif span.cost_usd is None:
-        span.cost_usd = estimate_cost(span.model, span.input_tokens, span.output_tokens)
+        span.cost_usd = estimate_cost(
+            span.model,
+            span.input_tokens,
+            span.output_tokens,
+            span.cache_read_tokens,
+            span.cache_creation_tokens,
+            prices,
+        )
 
 
-async def _recompute_aggregates(
-    db: AsyncSession, trace: Trace, explicit_status: str | None = None
+def _recompute_aggregates(
+    trace: Trace, spans: list[Span], explicit_status: str | None = None
 ) -> None:
-    result = await db.execute(select(Span).where(Span.trace_pk == trace.id))
-    spans = list(result.scalars())
-
     trace.span_count = len(spans)
     trace.error_count = sum(1 for s in spans if s.status == "error")
     trace.llm_call_count = sum(1 for s in spans if s.kind == "LLM")
-    trace.input_tokens = sum(s.input_tokens or 0 for s in spans)
+    trace.input_tokens = sum(
+        (s.input_tokens or 0) + (s.cache_read_tokens or 0) + (s.cache_creation_tokens or 0)
+        for s in spans
+    )
     trace.output_tokens = sum(s.output_tokens or 0 for s in spans)
     trace.cost_usd = round(sum(s.cost_usd or 0.0 for s in spans), 8)
 

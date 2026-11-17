@@ -53,6 +53,15 @@ export function SpanInspector({
               value={`${formatTokens(span.input_tokens)} in / ${formatTokens(span.output_tokens)} out`}
             />
           )}
+          {(span.cache_read_tokens || span.cache_creation_tokens) && (
+            <MetaItem
+              label="Cache"
+              value={`${formatTokens(span.cache_read_tokens ?? 0)} read / ${formatTokens(span.cache_creation_tokens ?? 0)} written`}
+            />
+          )}
+          {span.ttft_ms != null && (
+            <MetaItem label="First token" value={formatDuration(span.ttft_ms)} />
+          )}
           {span.cost_usd !== null && <MetaItem label="Cost" value={formatCost(span.cost_usd)} />}
           <MetaItem label="Span ID" value={span.span_id} mono />
         </dl>

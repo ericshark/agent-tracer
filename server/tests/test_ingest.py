@@ -197,3 +197,110 @@ async def test_stats_endpoint(user_client, project, api_key):
     assert body["total_input_tokens"] == 300
     assert len(body["buckets"]) >= 12
     assert sum(b["trace_count"] for b in body["buckets"]) == 3
+
+
+async def test_trace_dimensions_and_cache_token_pricing(user_client, project, api_key):
+    client, headers, _ = user_client
+    trace_id = uuid.uuid4().hex
+    span = make_span(
+        trace_id=trace_id,
+        kind="LLM",
+        model="claude-opus-5-5",
+        input_tokens=1_000_000,
+        output_tokens=0,
+        cache_read_tokens=1_000_000,
+        cache_creation_tokens=1_000_000,
+        ttft_ms=120.5,
+    )
+    response = await client.post(
+        "/v1/ingest",
+        json={
+            "traces": [
+                {
+                    "trace_id": trace_id,
+                    "user_id": "user-7",
+                    "tags": ["beta", "eu"],
+                    "environment": "staging",
+                    "release": "1.4.2",
+                }
+            ],
+            "spans": [span],
+        },
+        headers={"Authorization": f"Bearer {api_key}"},
+    )
+    assert response.status_code == 200, response.text
+
+    listing = await client.get(
+        f"/api/projects/{project['id']}/traces?user_id=user-7&environment=staging",
+        headers=headers,
+    )
+    (item,) = listing.json()["items"]
+    assert item["tags"] == ["beta", "eu"] and item["release"] == "1.4.2"
+    # $4 input + $0.20 cache read + $5 cache write (1.25 x input) per MTok.
+    assert item["cost_usd"] == 9.2
+    assert item["input_tokens"] == 3_000_000
+
+    detail = await client.get(f"/api/traces/{item['id']}", headers=headers)
+    assert detail.json()["spans"][0]["ttft_ms"] == 120.5
+
+    other = await client.get(
+        f"/api/projects/{project['id']}/traces?user_id=nobody", headers=headers
+    )
+    assert other.json()["items"] == []
+
+
+async def test_project_price_override_wins(user_client, project, api_key):
+    client, headers, _ = user_client
+    put = await client.put(
+        f"/api/projects/{project['id']}/model-prices",
+        json={"model_prefix": "my-finetune", "input_per_mtok": 1.0, "output_per_mtok": 2.0},
+        headers=headers,
+    )
+    assert put.status_code == 200, put.text
+    span = make_span(
+        kind="LLM", model="my-finetune-v2", input_tokens=500_000, output_tokens=500_000
+    )
+    await client.post(
+        "/v1/ingest", json={"spans": [span]}, headers={"Authorization": f"Bearer {api_key}"}
+    )
+    listing = await client.get(f"/api/projects/{project['id']}/traces", headers=headers)
+    assert listing.json()["items"][0]["cost_usd"] == 1.5
+
+
+async def test_keyset_cursor_pages_without_overlap(user_client, project, api_key):
+    client, headers, _ = user_client
+    spans = [
+        make_span(
+            started_at=f"2026-08-04T12:0{i}:00+00:00", ended_at=f"2026-08-04T12:0{i}:01+00:00"
+        )
+        for i in range(5)
+    ]
+    await client.post(
+        "/v1/ingest", json={"spans": spans}, headers={"Authorization": f"Bearer {api_key}"}
+    )
+    url = f"/api/projects/{project['id']}/traces"
+    first = (await client.get(url, params={"limit": 2}, headers=headers)).json()
+    assert first["total"] == 5 and first["next_cursor"]
+    second = (
+        await client.get(
+            url, params={"limit": 2, "before": first["next_cursor"]}, headers=headers
+        )
+    ).json()
+    ids = [t["id"] for t in first["items"] + second["items"]]
+    assert len(ids) == 4 and len(set(ids)) == 4
+
+
+async def test_scoped_key_is_rejected_for_ingest(user_client, project):
+    client, headers, _ = user_client
+    created = await client.post(
+        f"/api/projects/{project['id']}/api-keys",
+        json={"name": "read only", "scopes": ["read"]},
+        headers=headers,
+    )
+    assert created.status_code == 201 and created.json()["scopes"] == ["read"]
+    response = await client.post(
+        "/v1/ingest",
+        json={"spans": [make_span()]},
+        headers={"Authorization": f"Bearer {created.json()['key']}"},
+    )
+    assert response.status_code == 403

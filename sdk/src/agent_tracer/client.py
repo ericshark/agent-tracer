@@ -48,7 +48,12 @@ class AgentTracer:
         *,
         flush_interval: float = 0.5,
         exporter: ExporterLike | None = None,
+        environment: str | None = None,
+        release: str | None = None,
     ) -> None:
+        # Stamped on every trace unless overridden per trace.
+        self.environment = environment or os.environ.get("AGENT_TRACER_ENVIRONMENT")
+        self.release = release or os.environ.get("AGENT_TRACER_RELEASE")
         api_key = api_key or os.environ.get("AGENT_TRACER_API_KEY")
         base_url = (
             base_url
@@ -75,10 +80,26 @@ class AgentTracer:
         session_id: str | None = None,
         metadata: dict[str, Any] | None = None,
         trace_id: str | None = None,
+        user_id: str | None = None,
+        tags: list[str] | None = None,
+        environment: str | None = None,
+        release: str | None = None,
     ) -> Iterator[TraceHandle]:
-        """Open a trace: one end-to-end execution of your agent."""
+        """Open a trace: one end-to-end execution of your agent.
+
+        `user_id`, `tags`, `environment` and `release` are dimensions you can
+        filter and group by in the dashboard.
+        """
         handle = TraceHandle(
-            self, trace_id or new_trace_id(), name, session_id=session_id, metadata=metadata
+            self,
+            trace_id or new_trace_id(),
+            name,
+            session_id=session_id,
+            metadata=metadata,
+            user_id=user_id,
+            tags=tags,
+            environment=environment or self.environment,
+            release=release or self.release,
         )
         self._exporter.enqueue_trace(handle.to_payload())
         token = _current_trace.set(handle)
@@ -111,7 +132,13 @@ class AgentTracer:
         trace = _current_trace.get()
         implicit_trace_token = None
         if trace is None:
-            trace = TraceHandle(self, new_trace_id(), name)
+            trace = TraceHandle(
+                self,
+                new_trace_id(),
+                name,
+                environment=self.environment,
+                release=self.release,
+            )
             self._exporter.enqueue_trace(trace.to_payload())
             implicit_trace_token = _current_trace.set(trace)
 

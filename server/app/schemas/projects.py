@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -23,8 +24,13 @@ class ProjectOut(BaseModel):
     created_at: datetime
 
 
+ApiKeyScope = Literal["ingest", "read", "write"]
+
+
 class ApiKeyCreate(BaseModel):
     name: str = Field(min_length=1, max_length=120)
+    # Omitted → full access (ingest + read + write).
+    scopes: list[ApiKeyScope] | None = Field(default=None, min_length=1)
 
 
 class ApiKeyOut(BaseModel):
@@ -36,6 +42,7 @@ class ApiKeyOut(BaseModel):
     created_at: datetime
     last_used_at: datetime | None
     revoked_at: datetime | None
+    scopes: list[str] | None = None
 
 
 class ApiKeyCreatedOut(ApiKeyOut):
@@ -55,3 +62,19 @@ class CredentialOut(BaseModel):
     masked_key: str
     base_url: str | None
     updated_at: datetime
+
+
+class ModelPricePut(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
+    model_prefix: str = Field(min_length=1, max_length=128)
+    input_per_mtok: float = Field(ge=0)
+    output_per_mtok: float = Field(ge=0)
+    cache_read_per_mtok: float | None = Field(default=None, ge=0)
+    cache_write_per_mtok: float | None = Field(default=None, ge=0)
+
+
+class ModelPriceOut(ModelPricePut):
+    model_config = ConfigDict(from_attributes=True, protected_namespaces=())
+
+    id: uuid.UUID

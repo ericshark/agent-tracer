@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.api.access import can_access, load_trace
 from app.api.deps import get_current_user
 from app.core.security import generate_share_token
 from app.core.timeutil import as_utc
@@ -15,18 +16,6 @@ from app.schemas.share import PublicTraceOut, ShareCreate, ShareOut
 from app.schemas.traces import SpanOut, TraceSummary
 
 router = APIRouter(prefix="/api", tags=["share"])
-
-
-async def _load_owned_trace(db: AsyncSession, user: User, trace_pk: uuid.UUID) -> Trace:
-    result = await db.execute(
-        select(Trace)
-        .join(Project, Trace.project_id == Project.id)
-        .where(Trace.id == trace_pk, Project.owner_id == user.id)
-    )
-    trace = result.scalar_one_or_none()
-    if trace is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Trace not found")
-    return trace
 
 
 @router.post(
@@ -45,7 +34,7 @@ async def create_share(
     The body is optional; omitting it creates a link that never expires.
     """
     expires_in_hours = payload.expires_in_hours if payload else None
-    trace = await _load_owned_trace(db, user, trace_pk)
+    trace = await load_trace(db, user, trace_pk, with_spans=False)
     share = ShareLink(
         trace_pk=trace.id,
         created_by=user.id,
@@ -66,7 +55,7 @@ async def list_shares(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[ShareOut]:
-    trace = await _load_owned_trace(db, user, trace_pk)
+    trace = await load_trace(db, user, trace_pk, with_spans=False)
     result = await db.execute(
         select(ShareLink).where(ShareLink.trace_pk == trace.id).order_by(ShareLink.created_at)
     )
@@ -83,7 +72,7 @@ async def revoke_share(
         select(ShareLink)
         .join(Trace, ShareLink.trace_pk == Trace.id)
         .join(Project, Trace.project_id == Project.id)
-        .where(ShareLink.id == share_id, Project.owner_id == user.id)
+        .where(ShareLink.id == share_id, can_access(user))
     )
     share = result.scalar_one_or_none()
     if share is None:

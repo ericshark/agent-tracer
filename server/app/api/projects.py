@@ -12,13 +12,15 @@ from app.core.security import (
     mask_secret,
 )
 from app.db import get_db
-from app.models import ApiKey, Project, ProviderCredential, User, utcnow
+from app.models import API_KEY_SCOPES, ApiKey, ModelPrice, Project, ProviderCredential, User, utcnow
 from app.schemas.projects import (
     ApiKeyCreate,
     ApiKeyCreatedOut,
     ApiKeyOut,
     CredentialOut,
     CredentialPut,
+    ModelPriceOut,
+    ModelPricePut,
     ProjectCreate,
     ProjectOut,
     ProjectUpdate,
@@ -103,7 +105,11 @@ async def create_api_key(
 ) -> ApiKeyCreatedOut:
     plaintext, key_hash, prefix = generate_api_key()
     api_key = ApiKey(
-        project_id=project.id, name=payload.name, key_hash=key_hash, key_prefix=prefix
+        project_id=project.id,
+        name=payload.name,
+        key_hash=key_hash,
+        key_prefix=prefix,
+        scopes=sorted(set(payload.scopes)) if payload.scopes else list(API_KEY_SCOPES),
     )
     db.add(api_key)
     await db.commit()
@@ -196,4 +202,59 @@ async def delete_credential(
     if cred is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Credential not found")
     await db.delete(cred)
+    await db.commit()
+
+
+# ------------------------------------------------------- model price overrides
+
+
+@router.get("/{project_id}/model-prices", response_model=list[ModelPriceOut])
+async def list_model_prices(
+    project: Project = Depends(get_owned_project), db: AsyncSession = Depends(get_db)
+) -> list[ModelPriceOut]:
+    result = await db.execute(
+        select(ModelPrice)
+        .where(ModelPrice.project_id == project.id)
+        .order_by(ModelPrice.model_prefix)
+    )
+    return [ModelPriceOut.model_validate(p) for p in result.scalars()]
+
+
+@router.put("/{project_id}/model-prices", response_model=ModelPriceOut)
+async def put_model_price(
+    payload: ModelPricePut,
+    project: Project = Depends(get_owned_project),
+    db: AsyncSession = Depends(get_db),
+) -> ModelPriceOut:
+    """Create or replace the price for a model-name prefix. Applies to spans
+    ingested from now on; already-priced spans are not rewritten."""
+    prefix = payload.model_prefix.strip().lower()
+    result = await db.execute(
+        select(ModelPrice).where(
+            ModelPrice.project_id == project.id, ModelPrice.model_prefix == prefix
+        )
+    )
+    price = result.scalar_one_or_none()
+    if price is None:
+        price = ModelPrice(project_id=project.id, model_prefix=prefix)
+        db.add(price)
+    price.input_per_mtok = payload.input_per_mtok
+    price.output_per_mtok = payload.output_per_mtok
+    price.cache_read_per_mtok = payload.cache_read_per_mtok
+    price.cache_write_per_mtok = payload.cache_write_per_mtok
+    await db.commit()
+    await db.refresh(price)
+    return ModelPriceOut.model_validate(price)
+
+
+@router.delete("/{project_id}/model-prices/{price_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_model_price(
+    price_id: uuid.UUID,
+    project: Project = Depends(get_owned_project),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    price = await db.get(ModelPrice, price_id)
+    if price is None or price.project_id != project.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Model price not found")
+    await db.delete(price)
     await db.commit()

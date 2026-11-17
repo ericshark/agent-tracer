@@ -1,32 +1,15 @@
-import uuid
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.access import get_owned_span
 from app.api.deps import get_current_user
 from app.core.replay import ReplayError, execute_replay
 from app.db import get_db
-from app.models import Project, Replay, Span, User
+from app.models import Replay, Span, User
 from app.schemas.replay import ReplayCreate, ReplayOut
 
 router = APIRouter(prefix="/api", tags=["replay"])
-
-
-async def get_owned_span(
-    span_pk: uuid.UUID,
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-) -> Span:
-    result = await db.execute(
-        select(Span)
-        .join(Project, Span.project_id == Project.id)
-        .where(Span.id == span_pk, Project.owner_id == user.id)
-    )
-    span = result.scalar_one_or_none()
-    if span is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Span not found")
-    return span
 
 
 @router.post(

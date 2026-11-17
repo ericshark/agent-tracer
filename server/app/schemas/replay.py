@@ -17,6 +17,9 @@ class ReplayCreate(BaseModel):
     messages: list[dict[str, Any]] | None = None
     system: str | None = Field(default=None, max_length=32768)
     params: dict[str, Any] | None = None  # e.g. {"max_tokens": 1024}
+    # Tool definitions in the target provider's format. The model may request
+    # a call; replays never execute it.
+    tools: list[dict[str, Any]] | None = Field(default=None, max_length=128)
 
 
 class ReplayOut(BaseModel):

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -46,6 +46,10 @@ class SpanIn(BaseModel):
     model: str | None = Field(default=None, max_length=128)
     input_tokens: int | None = Field(default=None, ge=0)
     output_tokens: int | None = Field(default=None, ge=0)
+    cache_read_tokens: int | None = Field(default=None, ge=0)
+    cache_creation_tokens: int | None = Field(default=None, ge=0)
+    reasoning_tokens: int | None = Field(default=None, ge=0)
+    ttft_ms: float | None = Field(default=None, ge=0)
     cost_usd: float | None = Field(default=None, ge=0)
     error: SpanErrorIn | None = None
 
@@ -76,6 +80,10 @@ class TraceIn(BaseModel):
     status: Literal["running", "ok", "error"] | None = None
     session_id: str | None = Field(default=None, max_length=255)
     metadata: dict[str, Any] | None = None
+    user_id: str | None = Field(default=None, max_length=255)
+    tags: list[Annotated[str, Field(max_length=64)]] | None = Field(default=None, max_length=32)
+    environment: str | None = Field(default=None, max_length=64)
+    release: str | None = Field(default=None, max_length=128)
     started_at: datetime | None = None
     ended_at: datetime | None = None
 

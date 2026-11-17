@@ -6,24 +6,34 @@ import {
   Routes,
   useLocation,
 } from "react-router-dom";
-import type { ReactNode } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 
 import { Spinner } from "./components/ui";
-import { ComparePage } from "./pages/ComparePage";
-import { LandingPage } from "./pages/Landing";
-import { LoginPage } from "./pages/Login";
-import { ProjectOverviewPage } from "./pages/ProjectOverview";
-import { ProjectsPage } from "./pages/Projects";
-import { SettingsPage } from "./pages/Settings";
-import { SharePage } from "./pages/SharePage";
-import { TraceDetailPage } from "./pages/TraceDetail";
 import { AuthProvider, useAuth } from "./state/auth";
+
+// Route-level code splitting: each page ships as its own chunk.
+const ComparePage = lazy(() => import("./pages/ComparePage").then((m) => ({ default: m.ComparePage })));
+const LandingPage = lazy(() => import("./pages/Landing").then((m) => ({ default: m.LandingPage })));
+const LoginPage = lazy(() => import("./pages/Login").then((m) => ({ default: m.LoginPage })));
+const ProjectOverviewPage = lazy(() => import("./pages/ProjectOverview").then((m) => ({ default: m.ProjectOverviewPage })));
+const ProjectsPage = lazy(() => import("./pages/Projects").then((m) => ({ default: m.ProjectsPage })));
+const SettingsPage = lazy(() => import("./pages/Settings").then((m) => ({ default: m.SettingsPage })));
+const SharePage = lazy(() => import("./pages/SharePage").then((m) => ({ default: m.SharePage })));
+const TraceDetailPage = lazy(() => import("./pages/TraceDetail").then((m) => ({ default: m.TraceDetailPage })));
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: { retry: 1, staleTime: 5_000, refetchOnWindowFocus: false },
   },
 });
+
+function PageFallback() {
+  return (
+    <div className="grid min-h-screen place-items-center">
+      <Spinner />
+    </div>
+  );
+}
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -46,6 +56,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <BrowserRouter>
+          <Suspense fallback={<PageFallback />}>
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
@@ -92,6 +103,7 @@ export default function App() {
             />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          </Suspense>
         </BrowserRouter>
       </AuthProvider>
     </QueryClientProvider>

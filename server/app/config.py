@@ -32,6 +32,11 @@ class Settings(BaseSettings):
     auth_rate_limit_attempts: int = 20
     auth_rate_limit_window_seconds: int = 60
 
+    # Background jobs: "inline" runs the worker inside the API process,
+    # "external" expects `python -m app.worker`, "off" disables it.
+    worker_mode: str = "inline"
+    worker_concurrency: int = 2
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

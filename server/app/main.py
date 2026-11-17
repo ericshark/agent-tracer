@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import time
 from contextlib import asynccontextmanager
@@ -8,6 +9,8 @@ from sqlalchemy import text
 
 from app.api import auth, compare, ingest, live, projects, replays, shares, traces
 from app.config import get_settings
+from app.core import handlers  # noqa: F401  (registers job handlers)
+from app.core.jobs import notify, worker_loop
 from app.db import get_engine
 from app.logging_config import configure_logging
 
@@ -21,7 +24,15 @@ async def lifespan(app: FastAPI):
     logger.info("Agent Tracer API starting (env=%s)", settings.environment)
     if settings.environment == "production" and settings.secret_key == "dev-only-secret-change-me":
         raise RuntimeError("SECRET_KEY must be set in production")
+    stop = asyncio.Event()
+    worker: asyncio.Task | None = None
+    if settings.worker_mode == "inline" and settings.environment != "test":
+        worker = asyncio.create_task(worker_loop(stop, settings.worker_concurrency))
     yield
+    if worker is not None:
+        stop.set()
+        notify()
+        await worker
     await get_engine().dispose()
     logger.info("Agent Tracer API stopped")
 

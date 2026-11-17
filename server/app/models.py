@@ -29,6 +29,9 @@ class Base(DeclarativeBase):
     pass
 
 
+API_KEY_SCOPES = ("ingest", "read", "write")
+
+
 class TimestampedUuidMixin:
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     created_at: Mapped[datetime] = mapped_column(
@@ -76,8 +79,13 @@ class ApiKey(TimestampedUuidMixin, Base):
     key_prefix: Mapped[str] = mapped_column(String(16), nullable=False)
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Subset of {"ingest", "read", "write"}. NULL (legacy rows) means all scopes.
+    scopes: Mapped[list | None] = mapped_column(JSONVariant, default=lambda: list(API_KEY_SCOPES))
 
     project: Mapped[Project] = relationship(back_populates="api_keys")
+
+    def has_scope(self, scope: str) -> bool:
+        return self.scopes is None or scope in self.scopes
 
 
 class ProviderCredential(TimestampedUuidMixin, Base):
@@ -116,6 +124,11 @@ class Trace(TimestampedUuidMixin, Base):
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="running")
     session_id: Mapped[str | None] = mapped_column(String(255), index=True)
     meta: Mapped[dict | None] = mapped_column("metadata", JSONVariant)
+    # End user the run was executed for, plus free-form slicing dimensions.
+    user_id: Mapped[str | None] = mapped_column(String(255), index=True)
+    tags: Mapped[list | None] = mapped_column(JSONVariant)
+    environment: Mapped[str | None] = mapped_column(String(64))
+    release: Mapped[str | None] = mapped_column(String(128))
 
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -175,6 +188,12 @@ class Span(TimestampedUuidMixin, Base):
     model: Mapped[str | None] = mapped_column(String(128))
     input_tokens: Mapped[int | None] = mapped_column(BigInteger)
     output_tokens: Mapped[int | None] = mapped_column(BigInteger)
+    # `input_tokens` counts uncached input only; cached tokens are tracked apart
+    # because they are priced differently.
+    cache_read_tokens: Mapped[int | None] = mapped_column(BigInteger)
+    cache_creation_tokens: Mapped[int | None] = mapped_column(BigInteger)
+    reasoning_tokens: Mapped[int | None] = mapped_column(BigInteger)
+    ttft_ms: Mapped[float | None] = mapped_column(Float)
     cost_usd: Mapped[float | None] = mapped_column(Float)
 
     error_type: Mapped[str | None] = mapped_column(String(255))
@@ -248,3 +267,46 @@ class Replay(TimestampedUuidMixin, Base):
     cost_usd: Mapped[float | None] = mapped_column(Float)
 
     span: Mapped[Span] = relationship(back_populates="replays")
+
+
+class ModelPrice(TimestampedUuidMixin, Base):
+    """Per-project price override (USD per 1M tokens), matched by model-name prefix."""
+
+    __tablename__ = "model_prices"
+    __table_args__ = (
+        UniqueConstraint("project_id", "model_prefix", name="uq_model_price_per_project"),
+    )
+
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    model_prefix: Mapped[str] = mapped_column(String(128), nullable=False)
+    input_per_mtok: Mapped[float] = mapped_column(Float, nullable=False)
+    output_per_mtok: Mapped[float] = mapped_column(Float, nullable=False)
+    cache_read_per_mtok: Mapped[float | None] = mapped_column(Float)
+    cache_write_per_mtok: Mapped[float | None] = mapped_column(Float)
+
+
+class Job(TimestampedUuidMixin, Base):
+    """Durable background job. See app.core.jobs."""
+
+    __tablename__ = "jobs"
+    __table_args__ = (Index("ix_jobs_claim", "status", "run_after"),)
+
+    project_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), index=True
+    )
+    kind: Mapped[str] = mapped_column(String(64), nullable=False)
+    payload: Mapped[dict] = mapped_column(JSONVariant, nullable=False, default=dict)
+    # queued | running | done | failed
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="queued")
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    max_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
+    run_after: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, nullable=False
+    )
+    # Optional idempotency key: a second enqueue with the same key is a no-op.
+    dedupe_key: Mapped[str | None] = mapped_column(String(255), unique=True)
+    locked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    error: Mapped[str | None] = mapped_column(Text)

@@ -216,3 +216,20 @@ def test_threaded_spans_do_not_leak_context(tracer_and_exporter):
     # each thread created its own implicit trace
     trace_ids = {s["trace_id"] for s in exporter.completed_spans()}
     assert len(trace_ids) == 4
+
+
+def test_trace_dimensions_and_extended_usage():
+    exporter = CapturingExporter()
+    tracer = AgentTracer(exporter=exporter, environment="staging", release="1.2.3")
+    with tracer.trace("run", user_id="u-1", tags=["beta"]):
+        with tracer.llm(model="claude-opus-5-5", messages=[]) as llm:
+            llm.mark_first_token()
+            llm.set_usage(
+                input_tokens=10, output_tokens=5, cache_read_tokens=100, reasoning_tokens=3
+            )
+    trace = exporter.traces[-1]
+    assert trace["user_id"] == "u-1" and trace["tags"] == ["beta"]
+    assert trace["environment"] == "staging" and trace["release"] == "1.2.3"
+    span = exporter.spans[-1]
+    assert span["cache_read_tokens"] == 100 and span["reasoning_tokens"] == 3
+    assert span["ttft_ms"] is not None and span["ttft_ms"] >= 0

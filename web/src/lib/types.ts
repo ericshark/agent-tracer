@@ -25,6 +25,7 @@ export interface ApiKey {
   created_at: string;
   last_used_at: string | null;
   revoked_at: string | null;
+  scopes?: string[] | null;
 }
 
 export interface ApiKeyCreated extends ApiKey {
@@ -66,6 +67,10 @@ export interface TraceSummary {
   output_tokens: number;
   cost_usd: number;
   meta: Record<string, unknown> | null;
+  user_id?: string | null;
+  tags?: string[] | null;
+  environment?: string | null;
+  release?: string | null;
 }
 
 export interface Span {
@@ -85,6 +90,10 @@ export interface Span {
   model: string | null;
   input_tokens: number | null;
   output_tokens: number | null;
+  cache_read_tokens?: number | null;
+  cache_creation_tokens?: number | null;
+  reasoning_tokens?: number | null;
+  ttft_ms?: number | null;
   cost_usd: number | null;
   error_type: string | null;
   error_message: string | null;
@@ -100,6 +109,7 @@ export interface TraceList {
   total: number;
   limit: number;
   offset: number;
+  next_cursor?: string | null;
 }
 
 export interface StatsBucket {

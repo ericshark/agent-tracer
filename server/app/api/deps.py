@@ -50,33 +50,43 @@ async def get_owned_project(
     return project
 
 
-async def get_ingest_project(
-    request: Request,
-    db: AsyncSession = Depends(get_db),
-) -> Project:
-    """Authenticate an ingest request via project API key.
+def require_api_key(scope: str):
+    """Dependency factory: authenticate a project API key that carries `scope`.
 
     Accepts `Authorization: Bearer at_…` or `X-API-Key: at_…`.
     """
-    key = _extract_bearer(request) or request.headers.get("X-API-Key")
-    if not key or not key.startswith("at_"):
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Missing API key")
-    result = await db.execute(select(ApiKey).where(ApiKey.key_hash == hash_api_key(key)))
-    api_key = result.scalar_one_or_none()
-    if api_key is None or api_key.revoked_at is not None:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid API key")
-    api_key.last_used_at = utcnow()
-    project = await db.get(Project, api_key.project_id)
-    if project is None:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid API key")
-    settings = get_settings()
-    if not ingest_rate_limiter.check(
-        str(project.id),
-        settings.ingest_rate_limit_batches,
-        settings.ingest_rate_limit_window_seconds,
-    ):
-        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "Ingest rate limit exceeded")
-    return project
+
+    async def dependency(request: Request, db: AsyncSession = Depends(get_db)) -> Project:
+        key = _extract_bearer(request) or request.headers.get("X-API-Key")
+        if not key or not key.startswith("at_"):
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Missing API key")
+        result = await db.execute(select(ApiKey).where(ApiKey.key_hash == hash_api_key(key)))
+        api_key = result.scalar_one_or_none()
+        if api_key is None or api_key.revoked_at is not None:
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid API key")
+        if not api_key.has_scope(scope):
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN, f"API key is missing the '{scope}' scope"
+            )
+        api_key.last_used_at = utcnow()
+        project = await db.get(Project, api_key.project_id)
+        if project is None:
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid API key")
+        settings = get_settings()
+        if not ingest_rate_limiter.check(
+            f"{scope}:{project.id}",
+            settings.ingest_rate_limit_batches,
+            settings.ingest_rate_limit_window_seconds,
+        ):
+            raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "API rate limit exceeded")
+        return project
+
+    return dependency
+
+
+get_ingest_project = require_api_key("ingest")
+get_read_project = require_api_key("read")
+get_write_project = require_api_key("write")
 
 
 class RateLimiter:
