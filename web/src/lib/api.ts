@@ -6,6 +6,12 @@ import type {
   Dataset,
   DatasetItem,
   DatasetItemList,
+  EvalResult,
+  Evaluator,
+  EvaluatorTemplate,
+  Experiment,
+  ExperimentComparison,
+  ExperimentItem,
   ProjectStats,
   Project,
   PublicTrace,
@@ -182,6 +188,53 @@ export const api = {
     }),
   exportDataset: (datasetId: string) =>
     request<string>(`/api/datasets/${datasetId}/export`, { text: true }),
+
+  // evaluators
+  listTemplates: () => request<EvaluatorTemplate[]>("/api/evaluator-templates"),
+  listEvaluators: (projectId: string) =>
+    request<Evaluator[]>(`/api/projects/${projectId}/evaluators`),
+  createEvaluator: (
+    projectId: string,
+    payload: { name: string; template: string; config: Record<string, unknown> },
+  ) =>
+    request<Evaluator>(`/api/projects/${projectId}/evaluators`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  deleteEvaluator: (evaluatorId: string) =>
+    request<void>(`/api/evaluators/${evaluatorId}`, { method: "DELETE" }),
+  evaluateTrace: (tracePk: string, evaluatorIds: string[], spanPk?: string | null) =>
+    request<EvalResult[]>(`/api/traces/${tracePk}/evaluate`, {
+      method: "POST",
+      body: JSON.stringify({ evaluator_ids: evaluatorIds, span_pk: spanPk ?? null }),
+    }),
+
+  // experiments
+  listExperiments: (projectId: string) =>
+    request<Experiment[]>(`/api/projects/${projectId}/experiments`),
+  createExperiment: (
+    projectId: string,
+    payload: {
+      name: string;
+      dataset_id: string;
+      target: { model: string; system?: string; messages?: unknown[] };
+      evaluator_ids: string[];
+    },
+  ) =>
+    request<Experiment>(`/api/projects/${projectId}/experiments`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  getExperiment: (experimentId: string) =>
+    request<Experiment>(`/api/experiments/${experimentId}`),
+  listExperimentItems: (experimentId: string) =>
+    request<{ items: ExperimentItem[]; total: number }>(
+      `/api/experiments/${experimentId}/items?limit=500`,
+    ),
+  deleteExperiment: (experimentId: string) =>
+    request<void>(`/api/experiments/${experimentId}`, { method: "DELETE" }),
+  compareExperiments: (ids: string[]) =>
+    request<ExperimentComparison>(`/api/experiments/compare?ids=${ids.join(",")}`),
 
   // scores
   listScores: (tracePk: string) => request<Score[]>(`/api/traces/${tracePk}/scores`),

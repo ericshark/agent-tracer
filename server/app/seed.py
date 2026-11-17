@@ -13,17 +13,30 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
 
+from app.core.experiments import JOB_KIND
 from app.core.ingest import ingest_batch
+from app.core.jobs import drain_jobs, enqueue
 from app.core.scores import upsert_score
 from app.core.security import generate_api_key, hash_password
 from app.db import get_session_factory
 from app.logging_config import configure_logging
-from app.models import ApiKey, Project, Trace, User
+from app.models import (
+    ApiKey,
+    Dataset,
+    DatasetItem,
+    Evaluator,
+    Experiment,
+    ExperimentItem,
+    Project,
+    Trace,
+    User,
+)
 from app.schemas.ingest import SpanErrorIn, SpanIn, TraceIn
 from app.schemas.scores import ScoreBase
 
 DEMO_EMAIL = "demo@agenttracer.dev"
 DEMO_NAME = "Demo User"
+DEMO_DATASET = "trip-requests"
 
 rng = random.Random(42)
 
@@ -328,6 +341,89 @@ async def _seed_scores(db, project: Project, trace_in: TraceIn, failed: bool) ->
         )
 
 
+async def _seed_evals(db, project: Project) -> int:
+    """A dataset, a few evaluators, and two prompt experiments to compare.
+
+    Runs on the built-in simulator, so it needs no provider key. Returns the
+    number of experiments created (0 when the demo dataset already exists).
+    """
+    existing = await db.execute(
+        select(Dataset.id).where(Dataset.project_id == project.id, Dataset.name == DEMO_DATASET)
+    )
+    if existing.first() is not None:
+        return 0
+    dataset = Dataset(
+        project_id=project.id,
+        name=DEMO_DATASET,
+        description="Trip requests with the reply each one should lead with.",
+    )
+    db.add(dataset)
+    await db.flush()
+    cases = [
+        DatasetItem(
+            dataset_id=dataset.id,
+            project_id=project.id,
+            input={"question": question},
+            expected_output=_plan_text(question),
+        )
+        for question in USER_QUESTIONS
+    ]
+    db.add_all(cases)
+    evaluators = [
+        Evaluator(project_id=project.id, name="correctness", template="correctness", config={}),
+        Evaluator(project_id=project.id, name="relevance", template="relevance", config={}),
+        Evaluator(
+            project_id=project.id,
+            name="mentions-plan",
+            template="contains",
+            config={"substring": "plan", "ignore_case": True},
+        ),
+        Evaluator(
+            project_id=project.id,
+            name="searched-flights",
+            template="required_tools",
+            config={"tools": ["search_flights"]},
+        ),
+    ]
+    db.add_all(evaluators)
+    await db.flush()
+    scored_by = [str(e.id) for e in evaluators[:3]]
+    system = "You are a travel concierge. Plan before acting."
+    variants = [
+        ("concierge-prompt-v1", "{{input.question}}"),
+        ("concierge-prompt-v2", "Write a step-by-step plan for this request: {{input.question}}"),
+    ]
+    for name, user_prompt in variants:
+        experiment = Experiment(
+            project_id=project.id,
+            dataset_id=dataset.id,
+            name=name,
+            target={
+                "type": "prompt",
+                "model": "claude-opus-5-5",
+                "system": system,
+                "messages": [{"role": "user", "content": user_prompt}],
+            },
+            evaluator_ids=scored_by,
+        )
+        db.add(experiment)
+        await db.flush()
+        db.add_all(
+            ExperimentItem(
+                experiment_id=experiment.id,
+                project_id=project.id,
+                dataset_item_id=case.id,
+                input=case.input,
+                expected_output=case.expected_output,
+            )
+            for case in cases
+        )
+        await enqueue(db, JOB_KIND, {"experiment_id": str(experiment.id)}, project_id=project.id)
+    await db.commit()
+    await drain_jobs()
+    return len(variants)
+
+
 async def seed(trace_count: int = 18) -> None:
     configure_logging(os.environ.get("LOG_LEVEL", "INFO"))
     factory = get_session_factory()
@@ -394,12 +490,15 @@ async def seed(trace_count: int = 18) -> None:
                 generated += 1
             await db.commit()
 
+        experiments = await _seed_evals(db, project)
+
     print("─" * 62)
     print("Demo data ready")
     print(f"  Sign in at the web UI with:  {DEMO_EMAIL} / {password}")
     print(f"  Project:                     {project.name}")
     print(f"  New API key (for the SDK):   {plaintext}")
     print(f"  Traces generated this run:   {generated}")
+    print(f"  Experiments run this run:    {experiments}")
     print("─" * 62)
 
 

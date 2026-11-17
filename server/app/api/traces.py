@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.access import get_owned_trace
 from app.api.deps import get_owned_project
-from app.core.scores import trace_score_briefs
+from app.core.scores import NOT_EXPERIMENT, trace_score_briefs
 from app.core.timeutil import as_utc
 from app.db import get_db
 from app.models import Project, Score, Trace, utcnow
@@ -21,10 +21,6 @@ from app.schemas.traces import (
 )
 
 router = APIRouter(prefix="/api", tags=["traces"])
-
-# Experiment runs are real traces, but they are test traffic: keep them out of
-# the production list and stats unless asked for (`?environment=experiment`).
-NOT_EXPERIMENT = or_(Trace.environment.is_(None), Trace.environment != "experiment")
 
 
 @router.get("/projects/{project_id}/traces", response_model=TraceListResponse)

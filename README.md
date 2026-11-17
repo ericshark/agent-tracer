@@ -1,8 +1,10 @@
 # Agent Tracer
 
-A tool for inspecting AI-agent runs: model and tool calls, timing, token usage,
-cost, and errors. It provides live traces, model-call replay, run comparison,
-and read-only sharing.
+A tool for inspecting and evaluating AI-agent runs: model and tool calls,
+timing, token usage, cost, and errors. It provides live traces, model-call
+replay, run comparison, read-only sharing — and evals: scores, datasets built
+from real traces, deterministic / trajectory / LLM-judge evaluators, and
+experiments you can compare against a baseline.
 
 ## Run locally
 

@@ -103,12 +103,14 @@ export function TraceDetailPage() {
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
-        <Waterfall
-          spans={spans}
-          selectedId={selectedSpanId}
-          onSelect={(span) => setSelectedSpanId(span.id)}
-        />
-        <div className="min-h-[420px] xl:sticky xl:top-[72px] xl:max-h-[calc(100vh-6rem)]">
+        <div className="min-w-0">
+          <Waterfall
+            spans={spans}
+            selectedId={selectedSpanId}
+            onSelect={(span) => setSelectedSpanId(span.id)}
+          />
+        </div>
+        <div className="min-h-[420px] min-w-0 xl:sticky xl:top-[72px] xl:max-h-[calc(100vh-6rem)]">
           {selectedSpan ? (
             <SpanInspector span={selectedSpan} projectId={projectId} tracePk={tracePk} />
           ) : (

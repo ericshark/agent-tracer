@@ -185,7 +185,7 @@ export function ScoresPanel({
               placeholder="0.8 · true · label"
               value={value}
               onChange={(e) => setValue(e.target.value)}
-              className="mono w-36 !text-xs"
+              className="mono w-28 min-w-0 shrink !text-xs sm:w-36"
             />
           </div>
           <TextInput

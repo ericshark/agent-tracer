@@ -11,6 +11,8 @@ import {
   ChevronsLeftIcon,
   CompareIcon,
   DatabaseIcon,
+  FlaskIcon,
+  GaugeIcon,
   FolderIcon,
   GearIcon,
   GridIcon,
@@ -159,12 +161,12 @@ function Sidebar({
   const projects = useQuery({ queryKey: ["projects"], queryFn: api.listProjects });
 
   const path = location.pathname;
-  const onCompare = path.endsWith("/compare");
+  const onCompare = path.endsWith(`/${projectId}/compare`);
   // First path segment after the project id decides which nav item is lit.
   const segment = path.split("/")[3] ?? "";
   const section = onCompare
     ? "compare"
-    : ["datasets", "settings"].includes(segment)
+    : ["datasets", "experiments", "evaluators", "settings"].includes(segment)
       ? segment
       : "overview";
 
@@ -259,6 +261,20 @@ function Sidebar({
               icon={<DatabaseIcon />}
               label="Datasets"
               active={section === "datasets"}
+              narrow={narrow}
+            />
+            <NavItem
+              to={`/projects/${projectId}/experiments`}
+              icon={<FlaskIcon />}
+              label="Experiments"
+              active={section === "experiments"}
+              narrow={narrow}
+            />
+            <NavItem
+              to={`/projects/${projectId}/evaluators`}
+              icon={<GaugeIcon />}
+              label="Evaluators"
+              active={section === "evaluators"}
               narrow={narrow}
             />
             <div className="my-3 border-t border-hairline" />

@@ -237,6 +237,129 @@ export interface DatasetItemList {
   offset: number;
 }
 
+export interface TemplateParam {
+  name: string;
+  type: "string" | "number" | "boolean" | "string_list" | "json" | "select";
+  description: string;
+  default: unknown;
+  required: boolean;
+  options: string[];
+}
+
+export interface EvaluatorTemplate {
+  key: string;
+  kind: "code" | "trajectory" | "llm_judge";
+  title: string;
+  description: string;
+  data_type: string;
+  needs_expected: boolean;
+  needs_trace: boolean;
+  params: TemplateParam[];
+}
+
+export interface Evaluator {
+  id: string;
+  name: string;
+  template: string;
+  config: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface EvalResult {
+  name: string | null;
+  value: number | boolean | string | null;
+  data_type: string;
+  comment: string | null;
+  error: string | null;
+}
+
+export interface ItemScore {
+  value: number | boolean | string | null;
+  data_type: string | null;
+  comment: string | null;
+  source?: string;
+  error?: string;
+}
+
+export interface ExperimentSummary {
+  item_count: number;
+  error_count: number;
+  avg_latency_ms: number | null;
+  p95_latency_ms: number | null;
+  total_cost_usd: number;
+  total_tokens: number;
+  scores: Record<
+    string,
+    { data_type: string | null; count: number; mean: number | null; errors: number }
+  >;
+}
+
+export interface Experiment {
+  id: string;
+  name: string;
+  description: string | null;
+  status: "pending" | "running" | "completed" | "failed";
+  dataset_id: string | null;
+  target: { type?: string; model?: string; system?: string; messages?: unknown[] };
+  evaluator_ids: string[];
+  summary: ExperimentSummary | null;
+  meta: Record<string, unknown> | null;
+  error: string | null;
+  created_at: string;
+  completed_at: string | null;
+  item_count: number;
+  completed_count: number;
+}
+
+export interface ExperimentItem {
+  id: string;
+  dataset_item_id: string | null;
+  input: unknown;
+  expected_output: unknown;
+  output: unknown;
+  status: "pending" | "ok" | "error";
+  error: string | null;
+  trace_pk: string | null;
+  latency_ms: number | null;
+  cost_usd: number | null;
+  scores: Record<string, ItemScore> | null;
+}
+
+export interface CompareScoreEntry {
+  experiment_id: string;
+  mean: number | null;
+  count: number;
+  paired?: number;
+  delta?: number | null;
+  improved?: number;
+  regressed?: number;
+  unchanged?: number;
+  ci_low?: number | null;
+  ci_high?: number | null;
+}
+
+export interface ExperimentComparison {
+  experiments: Experiment[];
+  baseline_id: string;
+  scores: Record<string, CompareScoreEntry[]>;
+  rows: Array<{
+    key: string;
+    input: unknown;
+    expected_output: unknown;
+    cells: Record<
+      string,
+      {
+        output: unknown;
+        status: string;
+        error: string | null;
+        scores: Record<string, ItemScore>;
+        latency_ms: number | null;
+        trace_pk: string | null;
+      }
+    >;
+  }>;
+}
+
 export type ScoreDataType = "numeric" | "boolean" | "categorical";
 
 export interface Score {
@@ -267,5 +390,6 @@ export interface ScoreSummary {
 export type LiveEvent =
   | { type: "connected" }
   | { type: "score.created"; trace_pk: string; score: Score }
+  | { type: "experiment.updated"; experiment_id: string; status: string }
   | { type: "trace.updated"; trace: TraceSummary }
   | { type: "span.upserted"; trace_pk: string; trace_id: string; span: Span };

@@ -3,12 +3,16 @@
 import uuid
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.events import broker, project_channel
-from app.models import Score
+from app.models import Score, Trace
 from app.schemas.scores import ScoreBase, ScoreOut
+
+# Experiment runs are real traces, but they are test traffic: keep them (and the
+# scores on them) out of production views unless explicitly asked for.
+NOT_EXPERIMENT = or_(Trace.environment.is_(None), Trace.environment != "experiment")
 
 
 def _split_value(data_type: str, value: Any) -> tuple[float | None, str | None]:

@@ -17,6 +17,18 @@ const DatasetsPage = lazy(() => import("./pages/Datasets").then((m) => ({ defaul
 const DatasetDetailPage = lazy(() =>
   import("./pages/DatasetDetail").then((m) => ({ default: m.DatasetDetailPage })),
 );
+const EvaluatorsPage = lazy(() =>
+  import("./pages/Evaluators").then((m) => ({ default: m.EvaluatorsPage })),
+);
+const ExperimentsPage = lazy(() =>
+  import("./pages/Experiments").then((m) => ({ default: m.ExperimentsPage })),
+);
+const ExperimentDetailPage = lazy(() =>
+  import("./pages/ExperimentDetail").then((m) => ({ default: m.ExperimentDetailPage })),
+);
+const ExperimentComparePage = lazy(() =>
+  import("./pages/ExperimentCompare").then((m) => ({ default: m.ExperimentComparePage })),
+);
 const LandingPage = lazy(() => import("./pages/Landing").then((m) => ({ default: m.LandingPage })));
 const LoginPage = lazy(() => import("./pages/Login").then((m) => ({ default: m.LoginPage })));
 const ProjectOverviewPage = lazy(() => import("./pages/ProjectOverview").then((m) => ({ default: m.ProjectOverviewPage })));
@@ -110,6 +122,38 @@ export default function App() {
               element={
                 <RequireAuth>
                   <DatasetDetailPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/projects/:projectId/evaluators"
+              element={
+                <RequireAuth>
+                  <EvaluatorsPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/projects/:projectId/experiments"
+              element={
+                <RequireAuth>
+                  <ExperimentsPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/projects/:projectId/experiments/compare"
+              element={
+                <RequireAuth>
+                  <ExperimentComparePage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/projects/:projectId/experiments/:experimentId"
+              element={
+                <RequireAuth>
+                  <ExperimentDetailPage />
                 </RequireAuth>
               }
             />

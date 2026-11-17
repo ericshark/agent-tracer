@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.access import can_access, load_trace
 from app.api.deps import get_current_user, get_owned_project, get_write_project
-from app.core.scores import publish_score, upsert_score
+from app.core.scores import NOT_EXPERIMENT, publish_score, upsert_score
 from app.core.timeutil import as_utc
 from app.db import get_db
 from app.models import Project, Score, ScoreConfig, Span, Trace, User, utcnow
@@ -52,9 +52,7 @@ async def score_from_wire_ids(
 ) -> Score | None:
     trace = (
         await db.execute(
-            select(Trace).where(
-                Trace.project_id == project.id, Trace.trace_id == payload.trace_id
-            )
+            select(Trace).where(Trace.project_id == project.id, Trace.trace_id == payload.trace_id)
         )
     ).scalar_one_or_none()
     if trace is None:
@@ -63,9 +61,7 @@ async def score_from_wire_ids(
     if payload.span_id is not None:
         span_pk = (
             await db.execute(
-                select(Span.id).where(
-                    Span.trace_pk == trace.id, Span.span_id == payload.span_id
-                )
+                select(Span.id).where(Span.trace_pk == trace.id, Span.span_id == payload.span_id)
             )
         ).scalar_one_or_none()
         if span_pk is None:
@@ -156,9 +152,9 @@ async def score_summary(
     cutoff = utcnow() - timedelta(hours=hours)
     rows = (
         await db.execute(
-            select(
-                Score.name, Score.data_type, Score.value, Score.string_value, Score.created_at
-            ).where(Score.project_id == project.id, Score.created_at >= cutoff)
+            select(Score.name, Score.data_type, Score.value, Score.string_value, Score.created_at)
+            .join(Trace, Score.trace_pk == Trace.id)
+            .where(Score.project_id == project.id, Score.created_at >= cutoff, NOT_EXPERIMENT)
         )
     ).all()
 
@@ -186,9 +182,7 @@ async def score_summary(
             label = "true" if value >= 0.5 else "false"
             entry["distribution"][label] = entry["distribution"].get(label, 0) + 1
         elif string_value is not None:
-            entry["distribution"][string_value] = (
-                entry["distribution"].get(string_value, 0) + 1
-            )
+            entry["distribution"][string_value] = entry["distribution"].get(string_value, 0) + 1
 
     summaries = []
     for name, entry in sorted(by_name.items()):
@@ -223,9 +217,7 @@ async def list_score_configs(
     project: Project = Depends(get_owned_project), db: AsyncSession = Depends(get_db)
 ) -> list[ScoreConfigOut]:
     result = await db.execute(
-        select(ScoreConfig)
-        .where(ScoreConfig.project_id == project.id)
-        .order_by(ScoreConfig.name)
+        select(ScoreConfig).where(ScoreConfig.project_id == project.id).order_by(ScoreConfig.name)
     )
     return [ScoreConfigOut.model_validate(c) for c in result.scalars()]
 
@@ -237,9 +229,7 @@ async def put_score_config(
     db: AsyncSession = Depends(get_db),
 ) -> ScoreConfigOut:
     if payload.data_type == "categorical" and not payload.categories:
-        raise HTTPException(
-            422, "A categorical score needs categories"
-        )
+        raise HTTPException(422, "A categorical score needs categories")
     result = await db.execute(
         select(ScoreConfig).where(
             ScoreConfig.project_id == project.id, ScoreConfig.name == payload.name

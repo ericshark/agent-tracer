@@ -145,6 +145,8 @@ async def test_prompt_experiment_runs_scores_and_summarises(user_client, project
     assert listing.json()["total"] == 0
     stats = await client.get(f"/api/projects/{project['id']}/stats", headers=headers)
     assert stats.json()["trace_count"] == 0
+    quality = await client.get(f"/api/projects/{project['id']}/scores/summary", headers=headers)
+    assert quality.json() == []
     only_experiments = await client.get(
         f"/api/projects/{project['id']}/traces?environment=experiment", headers=headers
     )

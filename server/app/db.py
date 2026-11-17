@@ -17,9 +17,18 @@ def _build_engine(url: str) -> AsyncEngine:
     kwargs: dict = {"pool_pre_ping": True, "pool_size": 5, "max_overflow": 2}
     if url.startswith("sqlite"):
         # SQLite is supported for local hacking and tests only.
-        from sqlalchemy.pool import StaticPool
+        in_memory = ":memory:" in url or url.rstrip("/").endswith("sqlite+aiosqlite:")
+        if in_memory:
+            # One shared connection, or every session would see an empty database.
+            from sqlalchemy.pool import StaticPool
 
-        kwargs = {"connect_args": {"check_same_thread": False}, "poolclass": StaticPool}
+            kwargs = {"connect_args": {"check_same_thread": False}, "poolclass": StaticPool}
+        else:
+            # A file database gets a connection per session: the background
+            # worker and API requests must not share one transaction.
+            from sqlalchemy.pool import NullPool
+
+            kwargs = {"connect_args": {"timeout": 30}, "poolclass": NullPool}
     return create_async_engine(url, **kwargs)
 
 

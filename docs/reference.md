@@ -84,6 +84,7 @@ root `.env`. Exported environment variables override file values.
 | `CORS_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173`                    | Comma-separated allowed frontend origins.                      |
 | `ENVIRONMENT`  | `development`                                                    | Production rejects the default secret.                         |
 | `LOG_LEVEL`    | `INFO`                                                           | Backend log verbosity.                                         |
+| `DEFAULT_JUDGE_MODEL` | `claude-opus-5-5`                                         | Model used by LLM-judge evaluators unless overridden.          |
 | `WORKER_MODE`  | `inline`                                                         | `inline` runs background jobs in the API process; `external` expects `python -m app.worker`; `off` disables them. |
 
 For PostgreSQL, create the database with `createdb agent_tracer` using your local
@@ -210,6 +211,52 @@ tracer.datasets.add_items("billing-questions", [
 ])
 dataset = tracer.datasets.get("billing-questions")  # .items -> input / expected_output
 ```
+
+**Evaluators:** an evaluator turns a run into a score. Create them under
+**Evaluators** from three families: deterministic checks (exact match, contains,
+regex, valid JSON, JSON Schema, similarity, latency/cost/token budgets),
+trajectory checks that read the agent's tool calls (tool sequence, required or
+forbidden tools, tool arguments, step budget, loops, redundant calls, tool
+success rate), and LLM judges (correctness, faithfulness, relevance,
+helpfulness, safety, task completion, or your own rubric). Judges use the
+project's Anthropic or OpenAI key (model set by `DEFAULT_JUDGE_MODEL`, default
+`claude-opus-5-5`, or per evaluator). Without a key they fall back to a crude
+local heuristic and mark the result `[simulated judge]` — fine for trying the
+workflow, not for real quality decisions.
+
+**Experiments:** run a target over a dataset and score every result.
+
+- From the dashboard (**Experiments → New experiment**): pick a dataset, a model
+  and a prompt. `{{input}}` / `{{input.field}}` insert the test case; leave the
+  prompt blank to replay recorded model calls unchanged on a different model.
+- From code, with your own agent as the task:
+
+```python
+from agent_tracer import AgentTracer, evaluator
+
+tracer = AgentTracer()
+
+@evaluator
+def cites_a_source(output):
+    return "http" in output            # number, bool, label, or (value, comment)
+
+result = tracer.experiment(
+    "agent-v2",
+    dataset="billing-questions",
+    task=lambda case: my_agent(case["question"]),
+    evaluators=[cites_a_source],                    # run in your process
+    server_evaluators=["correctness", "used-search"],  # configured in the dashboard
+)
+print(result.scores)   # {"cites_a_source": 0.9, "correctness": 0.84, "used-search": 1.0}
+```
+
+Each task call is traced, so results link to a waterfall and trajectory
+evaluators can check which tools ran. Select two or more experiments and press
+**Compare**: the first is the baseline, and each score shows the paired change,
+how many cases improved or regressed, and a 95% bootstrap interval (marked
+*inconclusive* when it includes zero). Experiment traces carry
+`environment=experiment` and are excluded from the overview's list, stats and
+Quality card; see them with `?environment=experiment`.
 
 **API key scopes:** keys carry `ingest`, `read` and `write` scopes (all three by
 default). Create an ingest-only key for production services by passing
