@@ -4,17 +4,21 @@ import { formatCost, formatDateTime, formatDuration, formatTokens } from "../lib
 import type { Span } from "../lib/types";
 import { asChatInput, asChatOutput, JsonView, MessageBubble, MessageList } from "./JsonView";
 import { ReplayPanel } from "./ReplayPanel";
+import { ScoresPanel } from "./Scores";
 import { KindBadge, StatusBadge } from "./ui";
 
-type Tab = "input" | "output" | "meta" | "error" | "replay";
+type Tab = "input" | "output" | "meta" | "error" | "scores" | "replay";
 
 export function SpanInspector({
   span,
   projectId,
+  tracePk,
   readOnly,
 }: {
   span: Span;
   projectId?: string;
+  /** Enables the Scores tab (annotations need an owning trace). */
+  tracePk?: string;
   readOnly?: boolean;
 }) {
   const [tab, setTab] = useState<Tab>("input");
@@ -29,6 +33,7 @@ export function SpanInspector({
     { id: "output", label: "Output", show: true },
     { id: "meta", label: "Attributes", show: true },
     { id: "error", label: "Error", show: span.status === "error" || span.error_message !== null },
+    { id: "scores", label: "Scores", show: !readOnly && !!tracePk },
     { id: "replay", label: "Replay", show: !readOnly && span.kind === "LLM" && !!projectId },
   ];
 
@@ -157,6 +162,8 @@ export function SpanInspector({
             )}
           </div>
         )}
+
+        {tab === "scores" && tracePk && <ScoresPanel tracePk={tracePk} spanPk={span.id} />}
 
         {tab === "replay" && projectId && <ReplayPanel span={span} projectId={projectId} />}
       </div>

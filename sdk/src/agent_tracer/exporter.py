@@ -55,6 +55,9 @@ class BatchExporter:
     def enqueue_trace(self, trace_payload: dict[str, Any]) -> None:
         self._enqueue({"kind": "trace", "data": trace_payload})
 
+    def enqueue_score(self, score_payload: dict[str, Any]) -> None:
+        self._enqueue({"kind": "score", "data": score_payload})
+
     def _enqueue(self, item: dict[str, Any]) -> None:
         if self._stopped.is_set():
             return
@@ -136,7 +139,10 @@ class BatchExporter:
         deduped: dict[str, dict[str, Any]] = {}
         for trace in traces:
             deduped[trace["trace_id"]] = {**deduped.get(trace["trace_id"], {}), **trace}
-        body = {"traces": list(deduped.values()), "spans": spans}
+        body: dict[str, Any] = {"traces": list(deduped.values()), "spans": spans}
+        scores = [i["data"] for i in items if i["kind"] == "score"]
+        if scores:
+            body["scores"] = scores
         self.post_batch(body)
 
     def post_batch(self, body: dict[str, Any]) -> None:
@@ -177,6 +183,9 @@ class NoopExporter:
         pass
 
     def enqueue_trace(self, trace_payload: dict[str, Any]) -> None:
+        pass
+
+    def enqueue_score(self, score_payload: dict[str, Any]) -> None:
         pass
 
     def flush(self, timeout: float = 10.0) -> bool:

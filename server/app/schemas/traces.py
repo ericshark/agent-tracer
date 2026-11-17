@@ -27,6 +27,8 @@ class TraceSummary(BaseModel):
     tags: list[str] | None = None
     environment: str | None = None
     release: str | None = None
+    # score name → mean value (or latest label); filled by list/detail endpoints
+    scores: dict[str, float | str] | None = None
 
 
 class SpanOut(BaseModel):

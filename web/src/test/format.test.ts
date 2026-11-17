@@ -44,3 +44,14 @@ describe("formatPercent", () => {
     expect(formatPercent(0.31)).toBe("31%");
   });
 });
+
+describe("formatScore", () => {
+  it("renders numbers, labels and missing values", async () => {
+    const { formatScore } = await import("../lib/format");
+    expect(formatScore(0.8)).toBe("0.80");
+    expect(formatScore(1)).toBe("1");
+    expect(formatScore(42.25)).toBe("42.3");
+    expect(formatScore("friendly")).toBe("friendly");
+    expect(formatScore(null)).toBe("—");
+  });
+});

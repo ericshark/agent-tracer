@@ -104,6 +104,25 @@ class SpanHandle:
             self.ttft_ms = round((time.monotonic() - self._started_monotonic) * 1000.0, 3)
         return self
 
+    def score(
+        self,
+        name: str,
+        value: float | bool | str,
+        *,
+        comment: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> SpanHandle:
+        """Attach a quality score to this span (number, boolean, or label)."""
+        self._tracer.score(
+            name,
+            value,
+            trace_id=self.trace_id,
+            span_id=self.span_id,
+            comment=comment,
+            metadata=metadata,
+        )
+        return self
+
     def add_event(self, name: str, attributes: dict[str, Any] | None = None) -> SpanHandle:
         self.events.append(
             {"name": name, "timestamp": _now_iso(), "attributes": safe_json(attributes) or {}}
@@ -194,6 +213,20 @@ class TraceHandle:
         self.environment = environment
         self.release = release
         self.status: str | None = None
+
+    def score(
+        self,
+        name: str,
+        value: float | bool | str,
+        *,
+        comment: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> TraceHandle:
+        """Attach a quality score to the whole trace."""
+        self._tracer.score(
+            name, value, trace_id=self.trace_id, comment=comment, metadata=metadata
+        )
+        return self
 
     def to_payload(self) -> dict[str, Any]:
         payload: dict[str, Any] = {"trace_id": self.trace_id, "name": self.name}

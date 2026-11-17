@@ -12,6 +12,7 @@ import {
   FilterIcon,
 } from "../components/icons";
 import { Layout } from "../components/Layout";
+import { QualityCard } from "../components/QualityCard";
 import { KpiStrip, StatTile, type StatDelta } from "../components/StatTile";
 import { TraceTable } from "../components/TraceTable";
 import { TracesChart } from "../components/TracesChart";
@@ -86,6 +87,12 @@ export function ProjectOverviewPage() {
     placeholderData: (previous) => previous, // no skeleton flash on refetch
   });
 
+  const quality = useQuery({
+    queryKey: ["score-summary", projectId],
+    queryFn: () => api.scoreSummary(projectId!),
+    enabled: !!projectId,
+  });
+
   // Unfiltered recent runs feed the per-agent panel.
   const recent = useQuery({
     queryKey: ["traces", projectId, "recent"],
@@ -102,6 +109,9 @@ export function ProjectOverviewPage() {
         if (event.type === "trace.updated") {
           void queryClient.invalidateQueries({ queryKey: ["traces", projectId] });
           void queryClient.invalidateQueries({ queryKey: ["stats", projectId] });
+        } else if (event.type === "score.created") {
+          void queryClient.invalidateQueries({ queryKey: ["traces", projectId] });
+          void queryClient.invalidateQueries({ queryKey: ["score-summary", projectId] });
         }
       },
       { onStatus: setLive },
@@ -297,6 +307,8 @@ export function ProjectOverviewPage() {
             />
           </div>
         )}
+
+        {quality.data && <QualityCard summaries={quality.data} />}
 
         <div ref={tableRef} className="scroll-mt-20">
           {traces.isLoading ? (

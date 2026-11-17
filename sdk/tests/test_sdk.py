@@ -10,12 +10,16 @@ class CapturingExporter:
     def __init__(self):
         self.spans = []
         self.traces = []
+        self.scores = []
 
     def enqueue_span(self, payload):
         self.spans.append(payload)
 
     def enqueue_trace(self, payload):
         self.traces.append(payload)
+
+    def enqueue_score(self, payload):
+        self.scores.append(payload)
 
     def flush(self, timeout=10.0):
         return True
@@ -233,3 +237,22 @@ def test_trace_dimensions_and_extended_usage():
     span = exporter.spans[-1]
     assert span["cache_read_tokens"] == 100 and span["reasoning_tokens"] == 3
     assert span["ttft_ms"] is not None and span["ttft_ms"] >= 0
+
+
+def test_scores_target_span_trace_or_explicit_ids(tracer_and_exporter):
+    tracer, exporter = tracer_and_exporter
+    tracer.score("dropped", 1)  # no active trace: ignored, never raises
+    with tracer.trace("run") as trace:
+        with tracer.tool("search") as span:
+            span.score("relevance", 0.7, comment="ok")
+        trace.score("resolved", True)
+        tracer.score("tone", "friendly")
+    tracer.score("feedback", 1, trace_id="a" * 32, external_id="fb-1")
+
+    by_name = {s["name"]: s for s in exporter.scores}
+    assert set(by_name) == {"relevance", "resolved", "tone", "feedback"}
+    assert by_name["relevance"]["span_id"] == span.span_id
+    assert by_name["relevance"]["comment"] == "ok"
+    assert "span_id" not in by_name["resolved"] and by_name["resolved"]["value"] is True
+    assert by_name["tone"]["trace_id"] == trace.trace_id
+    assert by_name["feedback"]["external_id"] == "fb-1"

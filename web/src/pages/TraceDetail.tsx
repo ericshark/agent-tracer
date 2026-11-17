@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { ShareIcon } from "../components/icons";
 import { Layout } from "../components/Layout";
+import { ScoreChips } from "../components/Scores";
 import { ShareModal } from "../components/ShareModal";
 import { MetricRow } from "../components/StatTile";
 import { SpanInspector } from "../components/SpanInspector";
@@ -82,6 +83,7 @@ export function TraceDetailPage() {
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <h2 className="mono text-xl text-ink">{data.name}</h2>
         <StatusBadge status={data.status} />
+        {data.scores && <ScoreChips scores={data.scores} max={6} />}
       </div>
 
       <div className="mb-5">
@@ -108,7 +110,7 @@ export function TraceDetailPage() {
         />
         <div className="min-h-[420px] xl:sticky xl:top-[72px] xl:max-h-[calc(100vh-6rem)]">
           {selectedSpan ? (
-            <SpanInspector span={selectedSpan} projectId={projectId} />
+            <SpanInspector span={selectedSpan} projectId={projectId} tracePk={tracePk} />
           ) : (
             <div className="card grid h-full place-items-center text-sm text-ink-muted">
               Select a span to inspect it

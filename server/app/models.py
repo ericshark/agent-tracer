@@ -310,3 +310,59 @@ class Job(TimestampedUuidMixin, Base):
     locked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     error: Mapped[str | None] = mapped_column(Text)
+
+
+class Score(TimestampedUuidMixin, Base):
+    """A quality signal attached to a trace or one of its spans.
+
+    Sources: the SDK ("sdk"), the API ("api", e.g. end-user feedback),
+    a person in the UI ("human"), or an automated evaluator ("evaluator").
+    """
+
+    __tablename__ = "scores"
+    __table_args__ = (
+        UniqueConstraint("project_id", "external_id", name="uq_score_external_id"),
+        Index("ix_scores_project_name_created", "project_id", "name", "created_at"),
+    )
+
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    trace_pk: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("traces.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    span_pk: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("spans.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    # numeric | boolean | categorical
+    data_type: Mapped[str] = mapped_column(String(16), nullable=False, default="numeric")
+    # Numeric value; booleans are stored as 1.0 / 0.0 so they average naturally.
+    value: Mapped[float | None] = mapped_column(Float)
+    # Label for categorical scores.
+    string_value: Mapped[str | None] = mapped_column(String(255))
+    comment: Mapped[str | None] = mapped_column(Text)
+    source: Mapped[str] = mapped_column(String(16), nullable=False, default="api")
+    author_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    meta: Mapped[dict | None] = mapped_column("metadata", JSONVariant)
+    # Caller-supplied idempotency key: re-sending updates instead of duplicating.
+    external_id: Mapped[str | None] = mapped_column(String(255))
+
+
+class ScoreConfig(TimestampedUuidMixin, Base):
+    """Declares a named score so the UI can render the right input for it."""
+
+    __tablename__ = "score_configs"
+    __table_args__ = (UniqueConstraint("project_id", "name", name="uq_score_config_name"),)
+
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    data_type: Mapped[str] = mapped_column(String(16), nullable=False, default="numeric")
+    min_value: Mapped[float | None] = mapped_column(Float)
+    max_value: Mapped[float | None] = mapped_column(Float)
+    categories: Mapped[list | None] = mapped_column(JSONVariant)
+    description: Mapped[str | None] = mapped_column(Text)

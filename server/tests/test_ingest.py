@@ -46,7 +46,7 @@ async def test_ingest_creates_trace_and_spans(user_client, project, api_key):
         "/v1/ingest", json={"spans": [root, child]}, headers=auth(api_key)
     )
     assert response.status_code == 200, response.text
-    assert response.json() == {"accepted_traces": 1, "accepted_spans": 2}
+    assert response.json() == {"accepted_traces": 1, "accepted_spans": 2, "accepted_scores": 0}
 
     listed = await client.get(f"/api/projects/{project['id']}/traces", headers=headers)
     items = listed.json()["items"]

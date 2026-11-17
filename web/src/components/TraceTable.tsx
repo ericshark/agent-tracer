@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 
 import { formatCost, formatDuration, formatTimeAgo, formatTokens } from "../lib/format";
 import type { TraceStatus, TraceSummary } from "../lib/types";
+import { ScoreChips } from "./Scores";
 import { DotMeter, StatusBadge } from "./ui";
 
 const STATUS_COLOR: Record<TraceStatus, string> = {
@@ -34,7 +35,7 @@ export function TraceTable({
     <div className="card">
       {header}
       <div className="overflow-x-auto rounded-b-[12px]">
-        <table className="mono w-full min-w-[880px] text-[13px]">
+        <table className="mono w-full min-w-[1040px] text-[13px]">
           <thead>
             <tr className="border-b border-hairline text-left text-xs text-ink-secondary">
               <th className="px-5 py-2.5 font-medium">Trace</th>
@@ -43,6 +44,7 @@ export function TraceTable({
               <th className="px-3 py-2.5 text-right font-medium">Spans</th>
               <th className="px-3 py-2.5 text-right font-medium">Tokens</th>
               <th className="px-3 py-2.5 text-right font-medium">Cost</th>
+              <th className="px-3 py-2.5 font-medium">Scores</th>
               <th className="px-3 py-2.5 text-right font-medium">Started</th>
               {onPickCompare && <th className="px-5 py-2.5 text-right font-medium">Actions</th>}
             </tr>
@@ -104,6 +106,9 @@ export function TraceTable({
                   </td>
                   <td className="px-3 py-2.5 text-right text-ink tabular-nums">
                     {formatCost(trace.cost_usd)}
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <ScoreChips scores={trace.scores} max={2} />
                   </td>
                   <td
                     className="px-3 py-2.5 text-right text-xs text-ink-muted"

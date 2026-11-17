@@ -71,6 +71,8 @@ export interface TraceSummary {
   tags?: string[] | null;
   environment?: string | null;
   release?: string | null;
+  /** score name → mean value, or the latest label for categorical scores */
+  scores?: Record<string, number | string> | null;
 }
 
 export interface Span {
@@ -208,7 +210,35 @@ export interface CompareResult {
   summary: { matched: number; added: number; removed: number; changed: number };
 }
 
+export type ScoreDataType = "numeric" | "boolean" | "categorical";
+
+export interface Score {
+  id: string;
+  trace_pk: string;
+  span_pk: string | null;
+  name: string;
+  data_type: ScoreDataType;
+  value: number | null;
+  string_value: string | null;
+  comment: string | null;
+  source: "sdk" | "api" | "human" | "evaluator";
+  author_id: string | null;
+  created_at: string;
+}
+
+export interface ScoreSummary {
+  name: string;
+  data_type: ScoreDataType;
+  count: number;
+  mean: number | null;
+  min: number | null;
+  max: number | null;
+  distribution: Record<string, number>;
+  series: Array<{ bucket_start: string; count: number; mean: number | null }>;
+}
+
 export type LiveEvent =
   | { type: "connected" }
+  | { type: "score.created"; trace_pk: string; score: Score }
   | { type: "trace.updated"; trace: TraceSummary }
   | { type: "span.upserted"; trace_pk: string; trace_id: string; span: Span };

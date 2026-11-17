@@ -83,8 +83,12 @@ def run_once(tracer: AgentTracer, fail: bool) -> None:
                 answer, out_tokens = fake_llm(prompt_tokens=1900)
                 llm.set_output({"role": "assistant", "content": answer})
                 llm.set_usage(input_tokens=1900, output_tokens=out_tokens)
+                # Score the step that produced the answer…
+                llm.score("groundedness", round(random.uniform(0.8, 0.98), 2))
 
             root.set_output({"answer": "delivered"})
+            # …and the run as a whole.
+            tracer.score("task_completed", True)
 
 
 def main() -> int:

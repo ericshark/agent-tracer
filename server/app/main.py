@@ -7,7 +7,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
-from app.api import auth, compare, ingest, live, projects, replays, shares, traces
+from app.api import auth, compare, ingest, live, projects, replays, scores, shares, traces
 from app.config import get_settings
 from app.core import handlers  # noqa: F401  (registers job handlers)
 from app.core.jobs import notify, worker_loop
@@ -80,6 +80,7 @@ def create_app() -> FastAPI:
     app.include_router(replays.router)
     app.include_router(compare.router)
     app.include_router(shares.router)
+    app.include_router(scores.router)
 
     @app.get("/healthz", tags=["health"])
     async def healthz() -> dict:

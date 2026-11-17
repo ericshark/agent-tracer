@@ -61,3 +61,11 @@ export function formatDateTime(iso: string): string {
     minute: "2-digit",
   });
 }
+
+/** Compact rendering of a score value: 0–1 numbers keep two decimals. */
+export function formatScore(value: number | string | null | undefined): string {
+  if (value === null || value === undefined) return "—";
+  if (typeof value === "string") return value;
+  if (Number.isInteger(value)) return String(value);
+  return Math.abs(value) < 10 ? value.toFixed(2) : value.toFixed(1);
+}

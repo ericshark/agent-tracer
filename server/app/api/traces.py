@@ -7,9 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.access import get_owned_trace
 from app.api.deps import get_owned_project
+from app.core.scores import trace_score_briefs
 from app.core.timeutil import as_utc
 from app.db import get_db
-from app.models import Project, Trace, utcnow
+from app.models import Project, Score, Trace, utcnow
 from app.schemas.traces import (
     ProjectStats,
     SpanOut,
@@ -32,6 +33,9 @@ async def list_traces(
     user_id: str | None = Query(default=None, max_length=255),
     environment: str | None = Query(default=None, max_length=64),
     before: datetime | None = Query(default=None),
+    score_name: str | None = Query(default=None, max_length=120),
+    score_min: float | None = Query(default=None),
+    score_max: float | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
 ) -> TraceListResponse:
@@ -44,6 +48,16 @@ async def list_traces(
         query = query.where(Trace.user_id == user_id)
     if environment:
         query = query.where(Trace.environment == environment)
+    if score_name:
+        # Traces with at least one matching score in the requested range.
+        scored = select(Score.trace_pk).where(
+            Score.project_id == project.id, Score.name == score_name
+        )
+        if score_min is not None:
+            scored = scored.where(Score.value >= score_min)
+        if score_max is not None:
+            scored = scored.where(Score.value <= score_max)
+        query = query.where(Trace.id.in_(scored))
     if q:
         pattern = f"%{q}%"
         query = query.where(or_(Trace.name.ilike(pattern), Trace.trace_id.ilike(pattern)))
@@ -58,6 +72,9 @@ async def list_traces(
         query.order_by(Trace.started_at.desc(), Trace.id).limit(limit).offset(offset)
     )
     items = [TraceSummary.model_validate(t) for t in result.scalars()]
+    briefs = await trace_score_briefs(db, [t.id for t in items])
+    for item in items:
+        item.scores = briefs.get(item.id)
     next_cursor = items[-1].started_at if len(items) == limit else None
     return TraceListResponse(
         items=items, total=total, limit=limit, offset=offset, next_cursor=next_cursor
@@ -145,9 +162,12 @@ async def project_stats(
 
 
 @router.get("/traces/{trace_pk}", response_model=TraceDetail)
-async def get_trace(trace: Trace = Depends(get_owned_trace)) -> TraceDetail:
+async def get_trace(
+    trace: Trace = Depends(get_owned_trace), db: AsyncSession = Depends(get_db)
+) -> TraceDetail:
     spans = sorted(trace.spans, key=lambda s: as_utc(s.started_at))
     summary = TraceSummary.model_validate(trace)
+    summary.scores = (await trace_score_briefs(db, [trace.id])).get(trace.id)
     return TraceDetail(
         **summary.model_dump(), spans=[SpanOut.model_validate(s) for s in spans]
     )

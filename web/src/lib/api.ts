@@ -7,6 +7,8 @@ import type {
   Project,
   PublicTrace,
   Replay,
+  Score,
+  ScoreSummary,
   ShareLink,
   TokenResponse,
   TraceDetail,
@@ -126,6 +128,25 @@ export const api = {
   deleteTrace: (tracePk: string) => request<void>(`/api/traces/${tracePk}`, { method: "DELETE" }),
   projectStats: (projectId: string, hours = 24) =>
     request<ProjectStats>(`/api/projects/${projectId}/stats?hours=${hours}`),
+
+  // scores
+  listScores: (tracePk: string) => request<Score[]>(`/api/traces/${tracePk}/scores`),
+  createScore: (
+    tracePk: string,
+    payload: {
+      name: string;
+      value: number | boolean | string;
+      span_pk?: string | null;
+      comment?: string;
+    },
+  ) =>
+    request<Score>(`/api/traces/${tracePk}/scores`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  deleteScore: (scoreId: string) => request<void>(`/api/scores/${scoreId}`, { method: "DELETE" }),
+  scoreSummary: (projectId: string, hours = 168) =>
+    request<ScoreSummary[]>(`/api/projects/${projectId}/scores/summary?hours=${hours}`),
 
   // replay
   createReplay: (

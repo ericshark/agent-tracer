@@ -3,6 +3,8 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.schemas.scores import ScoreIn
+
 SPAN_KINDS = {"AGENT", "LLM", "TOOL", "CHAIN", "RETRIEVER", "EMBEDDING", "GUARDRAIL", "UNKNOWN"}
 
 # Guardrail so a single pathological span cannot blow up storage.
@@ -96,8 +98,11 @@ class TraceIn(BaseModel):
 class IngestRequest(BaseModel):
     traces: list[TraceIn] = Field(default_factory=list)
     spans: list[SpanIn] = Field(default_factory=list)
+    # Applied after the batch's spans, so a score can target a span it ships with.
+    scores: list[ScoreIn] = Field(default_factory=list, max_length=1000)
 
 
 class IngestResponse(BaseModel):
     accepted_traces: int
     accepted_spans: int
+    accepted_scores: int = 0

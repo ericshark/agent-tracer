@@ -14,11 +14,13 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import func, select
 
 from app.core.ingest import ingest_batch
+from app.core.scores import upsert_score
 from app.core.security import generate_api_key, hash_password
 from app.db import get_session_factory
 from app.logging_config import configure_logging
 from app.models import ApiKey, Project, Trace, User
 from app.schemas.ingest import SpanErrorIn, SpanIn, TraceIn
+from app.schemas.scores import ScoreBase
 
 DEMO_EMAIL = "demo@agenttracer.dev"
 DEMO_NAME = "Demo User"
@@ -293,6 +295,39 @@ def _make_trace(
     return trace, spans
 
 
+async def _seed_scores(db, project: Project, trace_in: TraceIn, failed: bool) -> None:
+    """Quality signals a real deployment would collect: an automated relevance
+    score on every run, plus end-user feedback on some of them."""
+    trace = (
+        await db.execute(
+            select(Trace).where(
+                Trace.project_id == project.id, Trace.trace_id == trace_in.trace_id
+            )
+        )
+    ).scalar_one()
+    relevance = rng.uniform(0.15, 0.45) if failed else rng.uniform(0.72, 0.98)
+    scores = [ScoreBase(name="answer_relevance", value=round(relevance, 2))]
+    if rng.random() < 0.6:
+        scores.append(
+            ScoreBase(
+                name="user_feedback",
+                value=not failed and rng.random() < 0.9,
+                comment=None if not failed else "It never gave me an itinerary.",
+            )
+        )
+    if not failed:
+        scores.append(ScoreBase(name="tone", value=rng.choice(["friendly", "friendly", "formal"])))
+    for data in scores:
+        await upsert_score(
+            db,
+            project_id=project.id,
+            trace_pk=trace.id,
+            span_pk=None,
+            data=data,
+            source="api" if data.name == "user_feedback" else "evaluator",
+        )
+
+
 async def seed(trace_count: int = 18) -> None:
     configure_logging(os.environ.get("LOG_LEVEL", "INFO"))
     factory = get_session_factory()
@@ -355,7 +390,9 @@ async def seed(trace_count: int = 18) -> None:
                 failure = failures[i % 5] if i % 5 < 3 and i % 2 == 0 else None
                 trace_in, spans = _make_trace(started, rng.choice(USER_QUESTIONS), failure)
                 await ingest_batch(db, project, [trace_in], spans)
+                await _seed_scores(db, project, trace_in, failed=failure is not None)
                 generated += 1
+            await db.commit()
 
     print("─" * 62)
     print("Demo data ready")

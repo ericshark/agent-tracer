@@ -12,6 +12,7 @@ from typing import Any
 
 from .exporter import BatchExporter, ExporterLike, NoopExporter
 from .ids import new_span_id, new_trace_id
+from .serialize import safe_json
 from .spans import SpanHandle, TraceHandle
 
 logger = logging.getLogger("agent_tracer")
@@ -266,6 +267,44 @@ class AgentTracer:
         if isinstance(name_or_func, str):
             name = name or name_or_func
         return decorate
+
+    # ---------------------------------------------------------------- scores
+
+    def score(
+        self,
+        name: str,
+        value: float | bool | str,
+        *,
+        trace_id: str | None = None,
+        span_id: str | None = None,
+        comment: str | None = None,
+        metadata: dict[str, Any] | None = None,
+        external_id: str | None = None,
+    ) -> None:
+        """Record a quality score: a number, a boolean, or a category label.
+
+        Targets the given `trace_id` (and optional `span_id`); without one it
+        scores the trace that is currently active. Pass `external_id` to make
+        a score idempotent — sending it again updates the earlier value.
+
+            tracer.score("user_feedback", 1, trace_id=saved_trace_id)
+        """
+        if trace_id is None:
+            active = _current_trace.get()
+            if active is None:
+                logger.warning("agent-tracer: score(%r) outside a trace was dropped", name)
+                return
+            trace_id = active.trace_id
+        payload: dict[str, Any] = {"trace_id": trace_id, "name": name, "value": value}
+        if span_id is not None:
+            payload["span_id"] = span_id
+        if comment is not None:
+            payload["comment"] = comment
+        if metadata is not None:
+            payload["metadata"] = safe_json(metadata)
+        if external_id is not None:
+            payload["external_id"] = external_id
+        self._exporter.enqueue_score(payload)
 
     # -------------------------------------------------------------- plumbing
 

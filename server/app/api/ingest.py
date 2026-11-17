@@ -4,9 +4,11 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_ingest_project
+from app.api.scores import score_from_wire_ids
 from app.config import get_settings
 from app.core.ingest import ingest_batch
 from app.core.otlp import otlp_to_spans
+from app.core.scores import publish_score
 from app.db import get_db
 from app.models import Project
 from app.schemas.ingest import IngestRequest, IngestResponse
@@ -39,7 +41,19 @@ async def ingest_native(
             f"Batch exceeds {get_settings().max_spans_per_batch} spans",
         )
     traces, spans = await ingest_batch(db, project, payload.traces, payload.spans)
-    return IngestResponse(accepted_traces=traces, accepted_spans=spans)
+    accepted_scores = []
+    for score_in in payload.scores:
+        # Unknown targets are skipped rather than failing the telemetry batch.
+        score = await score_from_wire_ids(db, project, score_in, source="sdk")
+        if score is not None:
+            accepted_scores.append(score)
+    if accepted_scores:
+        await db.commit()
+        for score in accepted_scores:
+            publish_score(score)
+    return IngestResponse(
+        accepted_traces=traces, accepted_spans=spans, accepted_scores=len(accepted_scores)
+    )
 
 
 @router.post("/v1/traces")

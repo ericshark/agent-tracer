@@ -176,6 +176,26 @@ release=)` — or set `AGENT_TRACER_ENVIRONMENT` / `AGENT_TRACER_RELEASE` once.
 The trace list filters on `user_id` and `environment`. For streamed model calls,
 `span.mark_first_token()` records time-to-first-token.
 
+**Scores:** attach quality signals — a number, a boolean, or a label — to a
+span or a whole trace. They show up as chips on the trace list, in the span
+inspector's **Scores** tab (where you can also annotate by hand), and as trends
+in the overview's Quality card.
+
+```python
+with tracer.trace("support-run") as trace:
+    with tracer.llm(model=model_name, messages=messages) as llm:
+        ...
+        llm.score("groundedness", 0.92)
+    trace.score("resolved", True)
+
+# Later, e.g. when the user clicks thumbs-down (idempotent via external_id):
+tracer.score("user_feedback", False, trace_id=saved_trace_id, external_id=feedback_id)
+```
+
+Without the SDK, `POST /v1/scores` with `{"trace_id", "name", "value"}` and a
+key that has the `write` scope. Filter the trace list by score with
+`?score_name=…&score_min=…&score_max=…`.
+
 **API key scopes:** keys carry `ingest`, `read` and `write` scopes (all three by
 default). Create an ingest-only key for production services by passing
 `"scopes": ["ingest"]` when creating the key.
