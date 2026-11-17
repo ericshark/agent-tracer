@@ -220,6 +220,28 @@ export const CodeIcon = (p: IconProps) => (
   </Icon>
 );
 
+export const DatabaseIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <ellipse cx="12" cy="6" rx="7" ry="3" />
+    <path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6" />
+    <path d="M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6" />
+  </Icon>
+);
+
+export const FlaskIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3" />
+    <path d="M7.5 15h9" />
+  </Icon>
+);
+
+export const GaugeIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 16a8 8 0 1 1 16 0" />
+    <path d="M12 16l4-5" />
+  </Icon>
+);
+
 export const ReplayIcon = (p: IconProps) => (
   <Icon {...p}>
     <path d="M4 12a8 8 0 1 0 2.3-5.6" />

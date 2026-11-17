@@ -13,7 +13,9 @@ Quick start:
                 llm.set_output(reply).set_usage(input_tokens=812, output_tokens=310)
 """
 
+from .api import ApiError
 from .client import AgentTracer, current_span, current_trace
+from .datasets import Dataset, DatasetItem
 from .ids import new_span_id, new_trace_id
 from .spans import SpanHandle, TraceHandle
 
@@ -21,6 +23,9 @@ __version__ = "0.1.0"
 
 __all__ = [
     "AgentTracer",
+    "ApiError",
+    "Dataset",
+    "DatasetItem",
     "SpanHandle",
     "TraceHandle",
     "__version__",

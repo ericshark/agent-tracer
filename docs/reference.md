@@ -196,6 +196,21 @@ Without the SDK, `POST /v1/scores` with `{"trace_id", "name", "value"}` and a
 key that has the `write` scope. Filter the trace list by score with
 `?score_name=…&score_min=…&score_max=…`.
 
+**Datasets:** collections of test cases (an input, and optionally the output
+you expect). Build them three ways: **+ Dataset** on any span in the inspector
+(captures its recorded input and output — fix the expected output, and a
+production failure becomes a regression test), **Import** a JSONL or CSV file on
+the dataset page, or the SDK:
+
+```python
+tracer.datasets.create("billing-questions")
+tracer.datasets.add_items("billing-questions", [
+    {"input": {"question": "How do I get a refund?"}, "expected_output": "…"},
+    ("Where is my invoice?", "Under Settings → Billing."),  # (input, expected) pair
+])
+dataset = tracer.datasets.get("billing-questions")  # .items -> input / expected_output
+```
+
 **API key scopes:** keys carry `ingest`, `read` and `write` scopes (all three by
 default). Create an ingest-only key for production services by passing
 `"scopes": ["ingest"]` when creating the key.

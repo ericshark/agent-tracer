@@ -10,6 +10,7 @@ import {
   ChevronDownIcon,
   ChevronsLeftIcon,
   CompareIcon,
+  DatabaseIcon,
   FolderIcon,
   GearIcon,
   GridIcon,
@@ -158,8 +159,14 @@ function Sidebar({
   const projects = useQuery({ queryKey: ["projects"], queryFn: api.listProjects });
 
   const path = location.pathname;
-  const onSettings = path.endsWith("/settings");
   const onCompare = path.endsWith("/compare");
+  // First path segment after the project id decides which nav item is lit.
+  const segment = path.split("/")[3] ?? "";
+  const section = onCompare
+    ? "compare"
+    : ["datasets", "settings"].includes(segment)
+      ? segment
+      : "overview";
 
   // The mobile drawer always shows the full sidebar.
   const narrow = collapsed && !drawerOpen;
@@ -233,7 +240,7 @@ function Sidebar({
               to={`/projects/${projectId}`}
               icon={<GridIcon />}
               label="Overview"
-              active={!onSettings && !onCompare}
+              active={section === "overview"}
               narrow={narrow}
             />
             {onCompare && (
@@ -245,11 +252,21 @@ function Sidebar({
                 narrow={narrow}
               />
             )}
+            <div className="my-3 border-t border-hairline" />
+            <SectionLabel narrow={narrow}>Evaluate</SectionLabel>
+            <NavItem
+              to={`/projects/${projectId}/datasets`}
+              icon={<DatabaseIcon />}
+              label="Datasets"
+              active={section === "datasets"}
+              narrow={narrow}
+            />
+            <div className="my-3 border-t border-hairline" />
             <NavItem
               to={`/projects/${projectId}/settings`}
               icon={<GearIcon />}
               label="Settings"
-              active={onSettings}
+              active={section === "settings"}
               narrow={narrow}
             />
           </>

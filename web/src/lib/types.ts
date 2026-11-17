@@ -210,6 +210,33 @@ export interface CompareResult {
   summary: { matched: number; added: number; removed: number; changed: number };
 }
 
+export interface Dataset {
+  id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+  item_count: number;
+}
+
+export interface DatasetItem {
+  id: string;
+  dataset_id: string;
+  input: unknown;
+  expected_output: unknown;
+  meta: Record<string, unknown> | null;
+  source_trace_pk: string | null;
+  source_span_pk: string | null;
+  archived_at: string | null;
+  created_at: string;
+}
+
+export interface DatasetItemList {
+  items: DatasetItem[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 export type ScoreDataType = "numeric" | "boolean" | "categorical";
 
 export interface Score {

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { formatCost, formatDateTime, formatDuration, formatTokens } from "../lib/format";
 import type { Span } from "../lib/types";
+import { AddToDatasetModal } from "./DatasetForms";
 import { asChatInput, asChatOutput, JsonView, MessageBubble, MessageList } from "./JsonView";
 import { ReplayPanel } from "./ReplayPanel";
 import { ScoresPanel } from "./Scores";
@@ -22,6 +23,7 @@ export function SpanInspector({
   readOnly?: boolean;
 }) {
   const [tab, setTab] = useState<Tab>("input");
+  const [addingToDataset, setAddingToDataset] = useState(false);
 
   // Reset to a sensible tab when switching spans.
   useEffect(() => {
@@ -47,6 +49,15 @@ export function SpanInspector({
           <h3 className="mono mr-1 truncate text-[14px] text-ink">{span.name}</h3>
           <KindBadge kind={span.kind} />
           <StatusBadge status={span.status} />
+          {!readOnly && projectId && tracePk && (
+            <button
+              type="button"
+              onClick={() => setAddingToDataset(true)}
+              className="mono ml-auto rounded-md border border-hairline px-2 py-0.5 text-[11px] text-ink-muted transition-colors hover:bg-surface-2 hover:text-ink"
+            >
+              + Dataset
+            </button>
+          )}
         </div>
         <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs sm:grid-cols-3">
           <MetaItem label="Duration" value={formatDuration(span.duration_ms)} />
@@ -167,6 +178,17 @@ export function SpanInspector({
 
         {tab === "replay" && projectId && <ReplayPanel span={span} projectId={projectId} />}
       </div>
+
+      {addingToDataset && projectId && tracePk && (
+        <AddToDatasetModal
+          projectId={projectId}
+          tracePk={tracePk}
+          spanPk={span.id}
+          defaultInput={span.input}
+          defaultExpected={span.output}
+          onClose={() => setAddingToDataset(false)}
+        />
+      )}
     </div>
   );
 }

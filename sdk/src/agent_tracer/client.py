@@ -10,6 +10,8 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from typing import Any
 
+from .api import ApiClient
+from .datasets import DatasetsClient
 from .exporter import BatchExporter, ExporterLike, NoopExporter
 from .ids import new_span_id, new_trace_id
 from .serialize import safe_json
@@ -61,6 +63,9 @@ class AgentTracer:
             or os.environ.get("AGENT_TRACER_BASE_URL")
             or "http://localhost:8000"
         )
+        self._api = ApiClient(base_url, api_key)
+        #: Dataset management — `tracer.datasets.get("name")`.
+        self.datasets = DatasetsClient(self._api)
         if exporter is not None:
             self._exporter: ExporterLike = exporter
         elif api_key:
@@ -322,6 +327,7 @@ class AgentTracer:
 
     def shutdown(self, timeout: float = 10.0) -> None:
         self._exporter.shutdown(timeout)
+        self._api.close()
 
 
 def current_span() -> SpanHandle | None:

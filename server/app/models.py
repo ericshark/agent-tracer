@@ -366,3 +366,48 @@ class ScoreConfig(TimestampedUuidMixin, Base):
     max_value: Mapped[float | None] = mapped_column(Float)
     categories: Mapped[list | None] = mapped_column(JSONVariant)
     description: Mapped[str | None] = mapped_column(Text)
+
+
+class Dataset(TimestampedUuidMixin, Base):
+    """A named collection of test cases for experiments."""
+
+    __tablename__ = "datasets"
+    __table_args__ = (UniqueConstraint("project_id", "name", name="uq_dataset_name"),)
+
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+
+    items: Mapped[list["DatasetItem"]] = relationship(
+        back_populates="dataset", cascade="all, delete-orphan", passive_deletes=True
+    )
+
+
+class DatasetItem(TimestampedUuidMixin, Base):
+    """One test case: an input, optionally the output it should produce."""
+
+    __tablename__ = "dataset_items"
+    __table_args__ = (Index("ix_dataset_items_dataset_created", "dataset_id", "created_at"),)
+
+    dataset_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    input: Mapped[dict | list | str | None] = mapped_column(JSONVariant)
+    expected_output: Mapped[dict | list | str | None] = mapped_column(JSONVariant)
+    meta: Mapped[dict | None] = mapped_column("metadata", JSONVariant)
+    # Where the case came from, when it was captured from production.
+    source_trace_pk: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("traces.id", ondelete="SET NULL")
+    )
+    source_span_pk: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("spans.id", ondelete="SET NULL")
+    )
+    # Archived items are kept for past experiments but skipped by new ones.
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    dataset: Mapped[Dataset] = relationship(back_populates="items")

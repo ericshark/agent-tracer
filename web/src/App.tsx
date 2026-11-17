@@ -13,6 +13,10 @@ import { AuthProvider, useAuth } from "./state/auth";
 
 // Route-level code splitting: each page ships as its own chunk.
 const ComparePage = lazy(() => import("./pages/ComparePage").then((m) => ({ default: m.ComparePage })));
+const DatasetsPage = lazy(() => import("./pages/Datasets").then((m) => ({ default: m.DatasetsPage })));
+const DatasetDetailPage = lazy(() =>
+  import("./pages/DatasetDetail").then((m) => ({ default: m.DatasetDetailPage })),
+);
 const LandingPage = lazy(() => import("./pages/Landing").then((m) => ({ default: m.LandingPage })));
 const LoginPage = lazy(() => import("./pages/Login").then((m) => ({ default: m.LoginPage })));
 const ProjectOverviewPage = lazy(() => import("./pages/ProjectOverview").then((m) => ({ default: m.ProjectOverviewPage })));
@@ -90,6 +94,22 @@ export default function App() {
               element={
                 <RequireAuth>
                   <ComparePage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/projects/:projectId/datasets"
+              element={
+                <RequireAuth>
+                  <DatasetsPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/projects/:projectId/datasets/:datasetId"
+              element={
+                <RequireAuth>
+                  <DatasetDetailPage />
                 </RequireAuth>
               }
             />

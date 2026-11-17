@@ -3,6 +3,9 @@ import type {
   ApiKeyCreated,
   CompareResult,
   Credential,
+  Dataset,
+  DatasetItem,
+  DatasetItemList,
   ProjectStats,
   Project,
   PublicTrace,
@@ -41,7 +44,10 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+async function request<T>(
+  path: string,
+  options: RequestInit & { text?: boolean } = {},
+): Promise<T> {
   const headers: Record<string, string> = {
     ...(options.headers as Record<string, string>),
   };
@@ -54,7 +60,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   let body: unknown = null;
   try {
-    body = await response.json();
+    body = options.text && response.ok ? await response.text() : await response.json();
   } catch {
     /* non-JSON error body */
   }
@@ -128,6 +134,54 @@ export const api = {
   deleteTrace: (tracePk: string) => request<void>(`/api/traces/${tracePk}`, { method: "DELETE" }),
   projectStats: (projectId: string, hours = 24) =>
     request<ProjectStats>(`/api/projects/${projectId}/stats?hours=${hours}`),
+
+  // datasets
+  listDatasets: (projectId: string) => request<Dataset[]>(`/api/projects/${projectId}/datasets`),
+  createDataset: (projectId: string, payload: { name: string; description?: string }) =>
+    request<Dataset>(`/api/projects/${projectId}/datasets`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  getDataset: (datasetId: string) => request<Dataset>(`/api/datasets/${datasetId}`),
+  deleteDataset: (datasetId: string) =>
+    request<void>(`/api/datasets/${datasetId}`, { method: "DELETE" }),
+  listDatasetItems: (datasetId: string, params: { limit?: number; offset?: number } = {}) =>
+    request<DatasetItemList>(
+      `/api/datasets/${datasetId}/items?limit=${params.limit ?? 50}&offset=${params.offset ?? 0}`,
+    ),
+  createDatasetItems: (
+    datasetId: string,
+    items: Array<{ input: unknown; expected_output?: unknown; metadata?: unknown }>,
+  ) =>
+    request<DatasetItem[]>(`/api/datasets/${datasetId}/items`, {
+      method: "POST",
+      body: JSON.stringify({ items }),
+    }),
+  addTracesToDataset: (
+    datasetId: string,
+    sources: Array<{ trace_pk: string; span_pk?: string | null }>,
+  ) =>
+    request<DatasetItem[]>(`/api/datasets/${datasetId}/items/from-traces`, {
+      method: "POST",
+      body: JSON.stringify({ sources }),
+    }),
+  updateDatasetItem: (
+    itemId: string,
+    payload: { input?: unknown; expected_output?: unknown; archived?: boolean },
+  ) =>
+    request<DatasetItem>(`/api/dataset-items/${itemId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  deleteDatasetItem: (itemId: string) =>
+    request<void>(`/api/dataset-items/${itemId}`, { method: "DELETE" }),
+  importDataset: (datasetId: string, format: "jsonl" | "csv", content: string) =>
+    request<DatasetItem[]>(`/api/datasets/${datasetId}/import`, {
+      method: "POST",
+      body: JSON.stringify({ format, content }),
+    }),
+  exportDataset: (datasetId: string) =>
+    request<string>(`/api/datasets/${datasetId}/export`, { text: true }),
 
   // scores
   listScores: (tracePk: string) => request<Score[]>(`/api/traces/${tracePk}/scores`),
