@@ -1,6 +1,6 @@
 import uuid
 
-from tests.conftest import make_span
+from tests.conftest import make_span, session_headers
 
 
 async def ingest_pipeline(client, api_key: str, fail_tool: bool) -> str:
@@ -80,7 +80,7 @@ async def test_compare_rejects_foreign_traces(user_client, project, api_key):
         "/api/auth/register",
         json={"email": "rival@example.com", "name": "Rival", "password": "password123"},
     )
-    other_headers = {"Authorization": f"Bearer {other_user.json()['access_token']}"}
+    other_headers = session_headers(other_user)
     response = await client.get(
         f"/api/compare?base={mine}&other={mine}", headers=other_headers
     )

@@ -91,15 +91,14 @@ async def test_live_stream_requires_auth(client, project):
     assert response.status_code == 401
 
 
-async def test_live_stream_accepts_query_token(user_client, project, api_key):
-    """EventSource clients can't set headers; a ?token= query param works."""
+async def test_live_stream_accepts_session_cookie(user_client, project, api_key):
+    """Browser live subscriptions authenticate with the session cookie."""
     client, headers, _user = user_client
-    token = headers["Authorization"].removeprefix("Bearer ")
 
     async def consume() -> list[dict]:
         events = []
         async with client.stream(
-            "GET", f"/api/projects/{project['id']}/events?limit=1&token={token}"
+            "GET", f"/api/projects/{project['id']}/events?limit=1", headers=headers
         ) as response:
             assert response.status_code == 200
             async for line in response.aiter_lines():

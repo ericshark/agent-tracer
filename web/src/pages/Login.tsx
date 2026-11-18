@@ -94,7 +94,7 @@ export function LoginPage() {
               : "Already have an account? Sign in"}
           </button>
         </form>
-        {!import.meta.env.VITE_API_BASE_URL && (
+        {import.meta.env.DEV && (
           <p className="mono mt-4 text-center text-[11px] text-ink-muted">
             Seeded demo: demo@agenttracer.dev / demo-password
           </p>

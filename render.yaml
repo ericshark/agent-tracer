@@ -6,8 +6,8 @@ services:
     plan: free
     branch: main
     rootDir: server
-    buildCommand: pip install .
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port "$PORT" --workers 1
+    buildCommand: pip install --require-hashes -r requirements.lock && pip install --no-deps .
+    startCommand: uvicorn app.main:app --no-access-log --host 0.0.0.0 --port "$PORT" --workers 1
     healthCheckPath: /readyz
     autoDeployTrigger: checksPass
     envVars:

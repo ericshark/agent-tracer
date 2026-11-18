@@ -1,5 +1,6 @@
 from collections.abc import AsyncIterator
 
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -29,7 +30,18 @@ def _build_engine(url: str) -> AsyncEngine:
             from sqlalchemy.pool import NullPool
 
             kwargs = {"connect_args": {"timeout": 30}, "poolclass": NullPool}
-    return create_async_engine(url, **kwargs)
+    engine = create_async_engine(url, **kwargs)
+    if url.startswith("sqlite"):
+        enable_sqlite_foreign_keys(engine)
+    return engine
+
+
+def enable_sqlite_foreign_keys(engine: AsyncEngine) -> None:
+    @event.listens_for(engine.sync_engine, "connect")
+    def enable_on_connect(connection, _record):
+        cursor = connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
 
 
 def get_engine() -> AsyncEngine:

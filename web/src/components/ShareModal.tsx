@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { SharedMetrics } from "../pages/SharePage";
 import { api } from "../lib/api";
 import { formatTimeAgo } from "../lib/format";
 import { CopyButton, GhostButton, Modal, PrimaryButton, Spinner } from "./ui";
@@ -14,9 +15,14 @@ export function ShareModal({ tracePk, onClose }: { tracePk: string; onClose: () 
     queryFn: () => api.listShares(tracePk),
   });
 
+  const preview = useQuery({
+    queryKey: ["share-preview", tracePk],
+    queryFn: () => api.sharePreview(tracePk),
+  });
+
   const create = useMutation({
     mutationFn: () =>
-      api.createShare(tracePk, expiry === "never" ? undefined : Number(expiry)),
+      api.createShare(tracePk, Number(expiry)),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["shares", tracePk] }),
   });
 
@@ -30,11 +36,12 @@ export function ShareModal({ tracePk, onClose }: { tracePk: string; onClose: () 
   return (
     <Modal title="Share this trace" onClose={onClose}>
       <p className="mb-4 text-xs text-ink-muted">
-        Anyone with the link gets a read-only view of this trace — no account needed, nothing
-        else in the project is visible. Links use unguessable 256-bit tokens and can be revoked
-        at any time.
+        Anyone with the link can see the metrics below until it expires or is revoked.
       </p>
 
+      {preview.data && <SharedMetrics trace={preview.data} />}
+      {preview.isError && <p role="alert">Could not load share preview.</p>}
+      {create.isError && <p role="alert">Could not create share link.</p>}
       <div className="mb-4 flex items-end gap-2">
         <label className="flex flex-col gap-1 text-xs text-ink-muted">
           Expires
@@ -46,10 +53,9 @@ export function ShareModal({ tracePk, onClose }: { tracePk: string; onClose: () 
             <option value="24">in 24 hours</option>
             <option value="168">in 7 days</option>
             <option value="720">in 30 days</option>
-            <option value="never">never</option>
           </select>
         </label>
-        <PrimaryButton onClick={() => create.mutate()} disabled={create.isPending}>
+        <PrimaryButton onClick={() => create.mutate()} disabled={create.isPending || !preview.data}>
           {create.isPending ? "Creating…" : "Create link"}
         </PrimaryButton>
       </div>
@@ -61,7 +67,7 @@ export function ShareModal({ tracePk, onClose }: { tracePk: string; onClose: () 
       ) : (
         <ul className="flex flex-col gap-2">
           {active.map((share) => {
-            const url = `${window.location.origin}/share/${share.token}`;
+            const url = `${window.location.origin}/share#${share.token}`;
             return (
               <li
                 key={share.id}

@@ -1,9 +1,7 @@
-import { apiUrl, getToken } from "./api";
 import type { LiveEvent } from "./types";
 
 /**
- * Fetch-based SSE client. Native EventSource cannot send an Authorization
- * header, so we consume the stream with fetch + ReadableStream instead.
+ * Fetch-based SSE client using the same-origin session cookie.
  * Reconnects with backoff until aborted.
  */
 export function subscribeLive(
@@ -15,17 +13,20 @@ export function subscribeLive(
   let stopped = false;
   let backoff = 1000;
 
-  const url = new URL(apiUrl(`/api/projects/${projectId}/events`), window.location.origin);
+  const url = new URL(`/api/projects/${projectId}/events`, window.location.origin);
   if (options.traceId) url.searchParams.set("trace_id", options.traceId);
 
   async function connect(): Promise<void> {
     while (!stopped) {
       try {
-        const token = getToken();
         const response = await fetch(url, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          credentials: "same-origin",
           signal: controller.signal,
         });
+        if (response.status === 401) {
+          window.dispatchEvent(new Event("at-unauthorized"));
+          return;
+        }
         if (!response.ok || !response.body) throw new Error(`SSE ${response.status}`);
         options.onStatus?.(true);
         backoff = 1000;

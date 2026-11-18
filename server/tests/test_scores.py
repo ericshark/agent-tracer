@@ -1,6 +1,6 @@
 import uuid
 
-from tests.conftest import make_span
+from tests.conftest import make_span, session_headers
 
 
 def key_auth(api_key: str) -> dict:
@@ -145,7 +145,7 @@ async def test_scores_are_isolated_between_users(user_client, project, api_key, 
         "/api/auth/register",
         json={"email": "other@example.com", "name": "Other", "password": "sup3r-secret-pw"},
     )
-    other_headers = {"Authorization": f"Bearer {other.json()['access_token']}"}
+    other_headers = session_headers(other)
     response = await client.get(f"/api/traces/{trace['id']}/scores", headers=other_headers)
     assert response.status_code == 404
     response = await client.post(

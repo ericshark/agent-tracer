@@ -4,10 +4,11 @@ import uuid
 # Configure the app before it is imported.
 os.environ.setdefault("SECRET_KEY", "test-secret-key-not-for-production")
 os.environ.setdefault("ENVIRONMENT", "test")
+os.environ.setdefault("CORS_ORIGINS", "http://test")
 
 import pytest
 from app.api.deps import auth_rate_limiter
-from app.db import set_engine_for_testing
+from app.db import enable_sqlite_foreign_keys, set_engine_for_testing
 from app.main import app
 from app.models import Base
 from httpx import ASGITransport, AsyncClient
@@ -25,6 +26,7 @@ async def engine():
             connect_args={"check_same_thread": False},
             poolclass=StaticPool,
         )
+        enable_sqlite_foreign_keys(engine)
     else:
         engine = create_async_engine(TEST_DATABASE_URL, pool_pre_ping=True)
     async with engine.begin() as conn:
@@ -41,7 +43,9 @@ async def engine():
 async def client(engine):
     auth_rate_limiter.reset()
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(
+        transport=transport, base_url="http://test", headers={"Origin": "http://test"}
+    ) as client:
         yield client
 
 
@@ -54,9 +58,9 @@ async def user_client(client: AsyncClient):
         json={"email": email, "name": "Dev User", "password": "sup3r-secret-pw"},
     )
     assert response.status_code == 201, response.text
-    data = response.json()
-    headers = {"Authorization": f"Bearer {data['access_token']}"}
-    return client, headers, data["user"]
+    headers = session_headers(response)
+    client.cookies.clear()
+    return client, headers, response.json()
 
 
 @pytest.fixture
@@ -79,6 +83,10 @@ async def api_key(user_client, project):
     )
     assert response.status_code == 201, response.text
     return response.json()["key"]
+
+
+def session_headers(response):
+    return {"Cookie": f"at_session={response.cookies['at_session']}"}
 
 
 def make_span(

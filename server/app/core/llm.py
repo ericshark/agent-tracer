@@ -22,6 +22,7 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.provider_urls import provider_url
 from app.core.security import decrypt_secret
 from app.models import ProviderCredential
 
@@ -217,13 +218,10 @@ async def _run_simulation(request: LLMRequest) -> LLMResult:
 
 
 async def _run_anthropic(cred: tuple[str, str | None], request: LLMRequest) -> LLMResult:
-    from anthropic import AsyncAnthropic
+    from anthropic import AsyncAnthropic, DefaultAsyncHttpxClient
 
     api_key, base_url = cred
-    client_kwargs: dict[str, Any] = {"api_key": api_key, "timeout": REQUEST_TIMEOUT_SECONDS}
-    if base_url:
-        client_kwargs["base_url"] = base_url
-    client = AsyncAnthropic(**client_kwargs)
+    url = provider_url("anthropic", base_url)
 
     body: dict[str, Any] = {
         "model": request.model,
@@ -247,7 +245,15 @@ async def _run_anthropic(cred: tuple[str, str | None], request: LLMRequest) -> L
     # Sampling parameters (temperature/top_p/top_k) are rejected by current
     # Claude models, so they are intentionally not forwarded.
 
-    response = await client.messages.create(**body)
+    async with AsyncAnthropic(
+        api_key=api_key,
+        base_url=url,
+        timeout=REQUEST_TIMEOUT_SECONDS,
+        http_client=DefaultAsyncHttpxClient(
+            timeout=REQUEST_TIMEOUT_SECONDS, follow_redirects=False, trust_env=False
+        ),
+    ) as client:
+        response = await client.messages.create(**body)
     usage = response.usage
     output: dict[str, Any] = {"role": "assistant", "stop_reason": response.stop_reason}
     if response.stop_reason == "refusal":
@@ -275,7 +281,7 @@ async def _run_anthropic(cred: tuple[str, str | None], request: LLMRequest) -> L
 
 async def _run_openai(cred: tuple[str, str | None], request: LLMRequest) -> LLMResult:
     api_key, base_url = cred
-    url = (base_url or "https://api.openai.com").rstrip("/") + "/v1/chat/completions"
+    url = provider_url("openai", base_url) + "/v1/chat/completions"
     messages = list(request.messages)
     if request.system:
         messages = [{"role": "system", "content": request.system}, *messages]
@@ -295,7 +301,9 @@ async def _run_openai(cred: tuple[str, str | None], request: LLMRequest) -> LLMR
             "json_schema": {"name": "response", "schema": request.json_schema, "strict": True},
         }
 
-    async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT_SECONDS) as client:
+    async with httpx.AsyncClient(
+        timeout=REQUEST_TIMEOUT_SECONDS, follow_redirects=False, trust_env=False
+    ) as client:
         response = await client.post(
             url, json=body, headers={"Authorization": f"Bearer {api_key}"}
         )

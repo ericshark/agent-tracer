@@ -4,10 +4,11 @@
 - API readiness: https://agent-tracer-api.onrender.com/readyz
 - Database: Supabase project `agent-tracer-prod` (`msfbgfymavjjbzndfhqf`).
 
-Vercel builds `web/` from GitHub `main`. The browser sends API and SSE
-requests directly to the Render Free service, which uses the Supabase TLS
-session pooler. Set `VITE_API_BASE_URL` in Vercel and the exact dashboard
-origin in Render's `CORS_ORIGINS`. Render stores `DATABASE_URL`, `SECRET_KEY`,
+Vercel builds `web/` from GitHub `main`. For the browser-session release,
+`web/vercel.json` proxies browser API and streaming requests to Render from the
+dashboard origin. The SDK continues to use the Render URL with a project key.
+Set each exact dashboard origin in Render's `CORS_ORIGINS`. Render uses the
+Supabase TLS session pooler and stores `DATABASE_URL`, `SECRET_KEY`,
 and the CA file referenced by `PGSSLROOTCERT`. PostgREST exposes an empty schema.
 
 Check GitHub Actions and the provider deployment logs after pushing. For
@@ -33,3 +34,32 @@ Settings; without one the built-in simulator runs. Migrations are applied by han
 before releasing code that needs them: the evals release added
 `0125979a5867`, `d643b3c0f62e`, `35d122a88892` and `87e42d38c899`, applied to
 production on November 17, 2026 before the code deployed.
+
+## Browser session and privacy rollout
+
+Coordinate the Vercel and Render release. Review and apply Alembic revision
+`9c6d0139c8ef` before deploying app code that requires it. This backfills legacy
+share expiration and creates the browser session table. The backfill remains
+in place after downgrading. Existing browsers must sign in again. New share
+links put their credential in the browser fragment and submit it in a JSON body.
+Legacy path links are supported until expiration. Keep access logs disabled on
+Render and verify proxy logs and header forwarding before enabling the release.
+Verify an account sign-in, sign-out, sanitized share, and live subscription
+through the public dashboard origin. Remove the obsolete `VITE_API_BASE_URL`
+setting after the coordinated deployment.
+
+Keep `TRACE_RETENTION_ENABLED_AT` unset until separately authorized. On
+activation set it to the actual UTC activation time in RFC 3339. The daily
+cleanup starts once 30 days have passed, then removes traces older than 30 days,
+along with their spans, shares, and trace-linked results. Dataset copies retain
+their own lifecycle. Password-confirmed account deletion removes owned
+projects, datasets and related credentials. Existing backups remain subject to
+the provider's backup retention.
+
+The Render service must install `requirements.lock` with hash verification before
+installing the app with `--no-deps`. Match the reviewed Render Blueprint build and
+start commands in existing dashboard configuration. Custom provider hosts must
+be trusted by the operator, reviewed for DNS and network egress, and explicitly
+listed in `OPENAI_PROVIDER_HOSTS` or `ANTHROPIC_PROVIDER_HOSTS`. The official
+provider endpoints work with neither setting. Keep `PUBLIC_API_DOCS` unset
+unless interactive documentation is intended to be public.

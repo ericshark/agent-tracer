@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   server:
     name: Server (lint + tests)
@@ -23,13 +26,21 @@ jobs:
           --health-timeout 3s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
         with:
           python-version: "3.12"
           cache: pip
       - name: Install
-        run: pip install -e "server[dev]"
+        run: |
+          pip install --require-hashes -r server/requirements.lock
+          pip install -e "server[dev]"
+      - name: Audit locked server dependencies
+        run: |
+          pip install pip-audit
+          pip-audit --no-deps --disable-pip -r server/requirements.lock
       - name: Lint
         run: ruff check server sdk
       - name: Tests (SQLite)
@@ -56,8 +67,10 @@ jobs:
       matrix:
         python-version: ["3.9", "3.12"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
@@ -71,8 +84,10 @@ jobs:
     name: Web (typecheck + tests + build)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version: 22
           cache: npm
@@ -80,6 +95,11 @@ jobs:
       - name: Install
         working-directory: web
         run: npm ci
+      - name: Audit web dependencies
+        working-directory: web
+        run: |
+          npm audit --audit-level=critical
+          npm audit --omit=dev --audit-level=high
       - name: Tests
         working-directory: web
         run: npm run test
@@ -91,7 +111,9 @@ jobs:
     name: Docker images build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
       - name: Build API image
         run: docker build server -t agent-tracer-api:ci
       - name: Build web image

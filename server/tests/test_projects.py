@@ -1,3 +1,6 @@
+from tests.conftest import session_headers
+
+
 async def test_project_crud(user_client):
     client, headers, _user = user_client
 
@@ -28,7 +31,7 @@ async def test_projects_are_owner_scoped(user_client, project):
         "/api/auth/register",
         json={"email": "intruder@example.com", "name": "Intruder", "password": "password123"},
     )
-    other_headers = {"Authorization": f"Bearer {other.json()['access_token']}"}
+    other_headers = session_headers(other)
     response = await client.get(f"/api/projects/{project['id']}", headers=other_headers)
     assert response.status_code == 404
 

@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_owned_project
+from app.core.provider_urls import provider_url
 from app.core.security import (
     decrypt_secret,
     encrypt_secret,
@@ -164,6 +165,10 @@ async def put_credential(
     project: Project = Depends(get_owned_project),
     db: AsyncSession = Depends(get_db),
 ) -> CredentialOut:
+    try:
+        provider_url(payload.provider, payload.base_url)
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
     result = await db.execute(
         select(ProviderCredential).where(
             ProviderCredential.project_id == project.id,

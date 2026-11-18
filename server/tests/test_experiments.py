@@ -3,7 +3,7 @@ import uuid
 from app.core.experiments import build_messages, render
 from app.core.jobs import drain_jobs
 
-from tests.conftest import make_span
+from tests.conftest import make_span, session_headers
 
 
 def key_auth(api_key: str) -> dict:
@@ -364,7 +364,7 @@ async def test_experiments_are_isolated_between_users(user_client, project, api_
         "/api/auth/register",
         json={"email": "other-exp@example.com", "name": "Other", "password": "sup3r-secret-pw"},
     )
-    other_headers = {"Authorization": f"Bearer {other.json()['access_token']}"}
+    other_headers = session_headers(other)
     experiment_id = opened.json()["id"]
     for path in (f"/api/experiments/{experiment_id}", f"/api/experiments/{experiment_id}/items"):
         assert (await client.get(path, headers=other_headers)).status_code == 404

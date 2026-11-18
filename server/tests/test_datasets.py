@@ -1,6 +1,6 @@
 import uuid
 
-from tests.conftest import make_span
+from tests.conftest import make_span, session_headers
 
 
 def key_auth(api_key: str) -> dict:
@@ -173,7 +173,7 @@ async def test_datasets_are_isolated_between_users(user_client, project, client)
         "/api/auth/register",
         json={"email": "other-ds@example.com", "name": "Other", "password": "sup3r-secret-pw"},
     )
-    other_headers = {"Authorization": f"Bearer {other.json()['access_token']}"}
+    other_headers = session_headers(other)
     assert (
         await client.get(f"/api/datasets/{dataset['id']}/items", headers=other_headers)
     ).status_code == 404

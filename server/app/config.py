@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import AwareDatetime
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -11,12 +12,15 @@ class Settings(BaseSettings):
     app_name: str = "Agent Tracer"
     environment: str = "development"  # development | production | test
     log_level: str = "INFO"
+    public_api_docs: bool = False
+    trace_retention_enabled_at: AwareDatetime | None = None
+    openai_provider_hosts: str = ""
+    anthropic_provider_hosts: str = ""
 
     database_url: str = "postgresql+asyncpg://tracer:tracer@localhost:5432/agent_tracer"
-    # Secret used to sign JWTs and derive the credential-encryption key.
+    # Secret used to derive the credential-encryption key.
     # MUST be overridden in production.
     secret_key: str = "dev-only-secret-change-me"
-    access_token_expire_minutes: int = 60 * 24
 
     # Comma-separated list of allowed CORS origins for the SPA dev server.
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"

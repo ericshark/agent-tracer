@@ -80,7 +80,7 @@ root `.env`. Exported environment variables override file values.
 | Variable       | Default                                                          | Purpose                                                        |
 | -------------- | ---------------------------------------------------------------- | -------------------------------------------------------------- |
 | `DATABASE_URL` | `postgresql+asyncpg://tracer:tracer@localhost:5432/agent_tracer` | Async SQLAlchemy connection URL; SQLite also works.            |
-| `SECRET_KEY`   | `dev-only-secret-change-me`                                      | Signs JWTs and encrypts provider keys; replace for production. |
+| `SECRET_KEY`   | `dev-only-secret-change-me`                                      | Encrypts provider keys; replace for production. |
 | `CORS_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173`                    | Comma-separated allowed frontend origins.                      |
 | `ENVIRONMENT`  | `development`                                                    | Production rejects the default secret.                         |
 | `LOG_LEVEL`    | `INFO`                                                           | Backend log verbosity.                                         |
@@ -342,7 +342,7 @@ not override it. Frontend-only builds are
 Production behavior:
 
 - passwords hashed with Argon2id; API keys stored as SHA-256 hashes (shown once)
-- JWT (HS256) sessions; auth endpoints rate-limited per IP
+- Revocable eight-hour browser sessions in HttpOnly cookies; auth endpoints rate-limited per IP
 - replay provider keys encrypted at rest (Fernet key derived from `SECRET_KEY`)
 - share links are 256-bit random tokens, revocable, optionally expiring
 - ingest payloads validated and size-capped (10 MiB / 1000 spans per batch,
@@ -397,8 +397,9 @@ web/      React SPA — src/pages/, src/components/, src/lib/, src/test/
 ### Vercel, Render, and Supabase
 
 Connect both hosting projects to GitHub `main`. Vercel uses the `web/` root
-and its Vite preset. Set `VITE_API_BASE_URL` to the public Render origin so both
-HTTP requests and live events reach the same backend. The Render Blueprint
+and its Vite preset. The same-origin rewrite proxies both HTTP requests and
+live events to Render. See [deployment notes](DEPLOYMENT.md) for the rollout.
+The Render Blueprint
 builds from `server/` and starts one worker on Render Free. Run the reviewed
 Alembic migrations separately before deploying a revision that needs them. Set
 `CORS_ORIGINS` to the production Vercel origin and keep the generated

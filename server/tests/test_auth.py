@@ -8,8 +8,9 @@ async def test_register_login_me_flow(client: AsyncClient):
     )
     assert register.status_code == 201
     body = register.json()
-    assert body["user"]["email"] == "alice@example.com"
-    assert "access_token" in body
+    assert body["email"] == "alice@example.com"
+    assert "access_token" not in body
+    assert "httponly" in register.headers["set-cookie"].lower()
 
     login = await client.post(
         "/api/auth/login",
@@ -17,8 +18,7 @@ async def test_register_login_me_flow(client: AsyncClient):
     )
     assert login.status_code == 200
 
-    token = login.json()["access_token"]
-    me = await client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
+    me = await client.get("/api/auth/me")
     assert me.status_code == 200
     assert me.json()["name"] == "Alice"
 

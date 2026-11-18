@@ -19,28 +19,10 @@ import type {
   Score,
   ScoreSummary,
   ShareLink,
-  TokenResponse,
   TraceDetail,
   TraceList,
   User,
 } from "./types";
-
-const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/+$/, "");
-
-export function apiUrl(path: string): string {
-  return apiBaseUrl + path;
-}
-
-const TOKEN_KEY = "at-token";
-
-export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
-}
-
-export function setToken(token: string | null) {
-  if (token === null) localStorage.removeItem(TOKEN_KEY);
-  else localStorage.setItem(TOKEN_KEY, token);
-}
 
 export class ApiError extends Error {
   status: number;
@@ -58,10 +40,8 @@ async function request<T>(
     ...(options.headers as Record<string, string>),
   };
   if (options.body !== undefined) headers["Content-Type"] = "application/json";
-  const token = getToken();
-  if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  const response = await fetch(apiUrl(path), { ...options, headers });
+  const response = await fetch(path, { ...options, headers, credentials: options.credentials ?? "same-origin" });
   if (response.status === 204) return undefined as T;
 
   let body: unknown = null;
@@ -79,7 +59,6 @@ async function request<T>(
           ? (detail[0] as { msg?: string })?.msg ?? "Request failed"
           : `Request failed (${response.status})`;
     if (response.status === 401 && !path.startsWith("/api/auth/")) {
-      setToken(null);
       window.dispatchEvent(new Event("at-unauthorized"));
     }
     throw new ApiError(response.status, message);
@@ -90,10 +69,13 @@ async function request<T>(
 export const api = {
   // auth
   register: (payload: { email: string; name: string; password: string }) =>
-    request<TokenResponse>("/api/auth/register", { method: "POST", body: JSON.stringify(payload) }),
+    request<User>("/api/auth/register", { method: "POST", body: JSON.stringify(payload) }),
   login: (payload: { email: string; password: string }) =>
-    request<TokenResponse>("/api/auth/login", { method: "POST", body: JSON.stringify(payload) }),
+    request<User>("/api/auth/login", { method: "POST", body: JSON.stringify(payload) }),
   me: () => request<User>("/api/auth/me"),
+  logout: () => request<void>("/api/auth/logout", { method: "POST" }),
+  deleteAccount: (password: string) =>
+    request<void>("/api/auth/me", { method: "DELETE", body: JSON.stringify({ password }) }),
 
   // projects
   listProjects: () => request<Project[]>("/api/projects"),
@@ -282,8 +264,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify(expiresInHours ? { expires_in_hours: expiresInHours } : {}),
     }),
+  sharePreview: (tracePk: string) => request<PublicTrace>(`/api/traces/${tracePk}/share-preview`),
   listShares: (tracePk: string) => request<ShareLink[]>(`/api/traces/${tracePk}/shares`),
   revokeShare: (shareId: string) =>
     request<ShareLink>(`/api/shares/${shareId}`, { method: "DELETE" }),
-  getSharedTrace: (token: string) => request<PublicTrace>(`/api/share/${token}`),
+  getSharedTrace: (token: string) => request<PublicTrace>("/api/share", {
+    method: "POST", credentials: "omit", body: JSON.stringify({ token }),
+  }),
 };

@@ -76,6 +76,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/share" element={<SharePage />} />
             <Route path="/share/:token" element={<SharePage />} />
             <Route
               path="/projects"

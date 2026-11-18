@@ -5,12 +5,6 @@ export interface User {
   created_at: string;
 }
 
-export interface TokenResponse {
-  access_token: string;
-  token_type: string;
-  user: User;
-}
-
 export interface Project {
   id: string;
   name: string;
@@ -166,9 +160,12 @@ export interface ShareLink {
 }
 
 export interface PublicTrace {
-  trace: TraceSummary;
-  spans: Span[];
-  project_name: string;
+  duration_ms: number | null;
+  span_count: number;
+  error_count: number;
+  llm_call_count: number;
+  input_tokens: number;
+  output_tokens: number;
 }
 
 export interface SpanBrief {

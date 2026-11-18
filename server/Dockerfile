@@ -7,8 +7,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /srv/app
 
 # Install dependencies first for layer caching.
-COPY pyproject.toml ./
-RUN pip install --upgrade pip && pip install .
+COPY pyproject.toml requirements.lock ./
+RUN pip install --require-hashes -r requirements.lock
 
 # Then the application code.
 COPY app ./app
@@ -26,4 +26,4 @@ HEALTHCHECK --interval=15s --timeout=3s --start-period=20s --retries=5 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=2)"
 
 # Apply migrations, then serve.
-CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --no-access-log --host 0.0.0.0 --port 8000"]

@@ -52,6 +52,16 @@ class User(TimestampedUuidMixin, Base):
     )
 
 
+class BrowserSession(Base):
+    __tablename__ = "browser_sessions"
+
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+
+
 class Project(TimestampedUuidMixin, Base):
     __tablename__ = "projects"
 

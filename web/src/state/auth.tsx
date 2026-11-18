@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import {
   createContext,
   useCallback,
@@ -8,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 
-import { api, getToken, setToken } from "../lib/api";
+import { api } from "../lib/api";
 import type { User } from "../lib/types";
 
 interface AuthState {
@@ -16,50 +17,62 @@ interface AuthState {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, name: string, password: string) => Promise<void>;
-  signOut: () => void;
+  signOut: () => Promise<void>;
+  deleteAccount: (password: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState<boolean>(() => getToken() !== null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!getToken()) return;
+    try { localStorage.removeItem("at-token"); } catch { /* Storage may be unavailable. */ }
     api
       .me()
       .then(setUser)
-      .catch(() => setToken(null))
+      .catch(() => setUser(null))
       .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
-    const onUnauthorized = () => setUser(null);
+    const onUnauthorized = () => {
+      queryClient.clear();
+      setUser(null);
+    };
     window.addEventListener("at-unauthorized", onUnauthorized);
     return () => window.removeEventListener("at-unauthorized", onUnauthorized);
-  }, []);
+  }, [queryClient]);
 
   const signIn = useCallback(async (email: string, password: string) => {
     const response = await api.login({ email, password });
-    setToken(response.access_token);
-    setUser(response.user);
-  }, []);
+    queryClient.clear();
+    setUser(response);
+  }, [queryClient]);
 
   const signUp = useCallback(async (email: string, name: string, password: string) => {
     const response = await api.register({ email, name, password });
-    setToken(response.access_token);
-    setUser(response.user);
-  }, []);
+    queryClient.clear();
+    setUser(response);
+  }, [queryClient]);
 
-  const signOut = useCallback(() => {
-    setToken(null);
+  const signOut = useCallback(async () => {
+    await api.logout();
+    queryClient.clear();
     setUser(null);
-  }, []);
+  }, [queryClient]);
+
+  const deleteAccount = useCallback(async (password: string) => {
+    await api.deleteAccount(password);
+    queryClient.clear();
+    setUser(null);
+  }, [queryClient]);
 
   const value = useMemo(
-    () => ({ user, loading, signIn, signUp, signOut }),
-    [user, loading, signIn, signUp, signOut],
+    () => ({ user, loading, signIn, signUp, signOut, deleteAccount }),
+    [user, loading, signIn, signUp, signOut, deleteAccount],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

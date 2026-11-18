@@ -25,7 +25,7 @@ import {
   SunIcon,
 } from "./icons";
 import { useTheme } from "../lib/theme";
-import { Menu, MenuItem } from "./ui";
+import { Menu, MenuItem, Modal, PrimaryButton, TextInput } from "./ui";
 
 function readPref(key: string): string | null {
   try {
@@ -401,7 +401,11 @@ function initials(name: string): string {
 }
 
 function UserCard({ narrow }: { narrow: boolean }) {
-  const { user, signOut } = useAuth();
+  const { user, signOut, deleteAccount } = useAuth();
+  const [accountError, setAccountError] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [password, setPassword] = useState("");
+  const [deleting, setDeleting] = useState(false);
   const navigate = useNavigate();
   const [theme, toggleTheme] = useTheme();
   if (!user) return null;
@@ -444,16 +448,52 @@ function UserCard({ narrow }: { narrow: boolean }) {
             <MenuItem
               onSelect={() => {
                 close();
-                signOut();
-                navigate("/login");
+                void signOut().then(() => navigate("/login")).catch(() =>
+                  setAccountError("Sign out failed. Please try again."),
+                );
               }}
             >
               <LogoutIcon size={14} />
               Sign out
             </MenuItem>
+            <MenuItem onSelect={() => {
+              close();
+              setAccountError("");
+              setConfirmDelete(true);
+            }}>
+              Delete account
+            </MenuItem>
           </>
         )}
       </Menu>
+      {!confirmDelete && accountError && <span role="alert" className="text-xs">{accountError}</span>}
+      {confirmDelete && (
+        <Modal title="Delete account" onClose={() => {
+          if (!deleting) {
+            setConfirmDelete(false);
+            setPassword("");
+            setAccountError("");
+          }
+        }}>
+          <p className="text-sm">This permanently deletes your account and projects.</p>
+          <form className="mt-4 flex flex-col gap-3" onSubmit={(event) => {
+            event.preventDefault();
+            if (deleting || !password) return;
+            setDeleting(true);
+            setAccountError("");
+            void deleteAccount(password).then(() => navigate("/login")).catch(() =>
+              setAccountError("Could not delete your account. Check your password and retry."),
+            ).finally(() => setDeleting(false));
+          }}>
+            <TextInput aria-label="Confirm password" type="password" autoComplete="current-password"
+              value={password} onChange={(event) => setPassword(event.target.value)} required />
+            {accountError && <p role="alert">{accountError}</p>}
+            <PrimaryButton type="submit" disabled={deleting || !password}>
+              {deleting ? "Deleting…" : "Permanently delete account"}
+            </PrimaryButton>
+          </form>
+        </Modal>
+      )}
     </div>
   );
 }

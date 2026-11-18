@@ -23,9 +23,8 @@ services:
       SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in .env}
       ENVIRONMENT: ${ENVIRONMENT:-production}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      # The SPA is served same-origin by nginx, so no CORS origins are needed
-      # in Docker. Add origins here if you serve the UI from elsewhere.
-      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      # Browser writes require the exact origin, even behind the same-origin proxy.
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:${WEB_PORT:-3000},http://127.0.0.1:${WEB_PORT:-3000}}
     depends_on:
       db:
         condition: service_healthy
