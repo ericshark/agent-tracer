@@ -23,3 +23,13 @@ and desktop/mobile browser loading were verified on November 16, 2026.
 The CORS update deploys through Render; verify `/readyz` and an OPTIONS request
 with the new dashboard Origin header after deployment. Authenticated user flows
 were not tested during the domain change.
+
+## Background jobs and evals
+
+Experiments run as database-backed jobs executed by a worker inside the API
+process (`WORKER_MODE=inline`, the default), so no extra service is needed on
+Render Free. Judge and replay calls use per-project provider keys stored under
+Settings; without one the built-in simulator runs. Migrations are applied by hand
+before releasing code that needs them: the evals release added
+`0125979a5867`, `d643b3c0f62e`, `35d122a88892` and `87e42d38c899`, applied to
+production on November 17, 2026 before the code deployed.
