@@ -22,6 +22,8 @@ def upgrade() -> None:
     )
     op.create_index("ix_browser_sessions_user_id", "browser_sessions", ["user_id"])
     op.create_index("ix_browser_sessions_expires_at", "browser_sessions", ["expires_at"])
+    if op.get_context().dialect.name == "postgresql":
+        op.execute("ALTER TABLE browser_sessions ENABLE ROW LEVEL SECURITY")
     shares = sa.table("share_links", sa.column("expires_at", sa.DateTime(timezone=True)))
     cap = datetime.now(UTC) + timedelta(days=7)
     op.execute(
